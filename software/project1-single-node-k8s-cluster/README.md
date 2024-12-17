@@ -50,4 +50,4 @@ You can add more Raspberry Pis later for a multi-node setup.
 - Scaling Later: If you add more Raspberry Pis, you can transition to a multi-node setup by joining them to the existing cluster.
 - Storage: Use an external SSD for better performance if you plan to deploy applications that require persistent storage.
 
-## TODO: add step-by-step guidance on setting up k3s or ArgoCD.
+## TODO: add step-by-step guidance on setting up k3s or ArgoCD
