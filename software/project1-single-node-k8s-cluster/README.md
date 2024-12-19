@@ -108,10 +108,10 @@ Below is a step-by-step guide for this installation, ensuring sensitive data is 
    ```
 
 3. **Bootstrap Flux**:
-   Replace `<username>` and `<homelab>` with your details:
+
    ```bash
    flux bootstrap github \
-     --owner=<username> \
+     --owner=TheNewThinkTank \
      --repository=homelab \
      --branch=main \
      --path=clusters/z-pi \
