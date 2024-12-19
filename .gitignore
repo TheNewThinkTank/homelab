@@ -1,0 +1,5 @@
+.secrets/
+kubeconfig.yaml
+private-keys/
+.env
+.DS_Store
