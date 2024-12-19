@@ -4,11 +4,14 @@ metadata:
   name: nginx
   namespace: default
 spec:
+  interval: 1m0s  # Reconcile every 1 minute
   chart:
     spec:
       chart: nginx
-      version: 1.2.3
+      version: "1.0.0"
       sourceRef:
         kind: HelmRepository
-        name: bitnami
+        name: my-helm-repo
         namespace: flux-system
+  values:
+    replicaCount: 1
