@@ -1,7 +1,7 @@
-apiVersion: source.toolkit.fluxcd.io/v1beta1
+apiVersion: source.toolkit.fluxcd.io/v1beta2
 kind: HelmRepository
 metadata:
-  name: my-helm-repo  # This should match the reference in your HelmRelease
+  name: bitnami  # This should match the reference in your HelmRelease
   namespace: flux-system
 spec:
   url: https://charts.bitnami.com/bitnami  # Use the repository URL you want (e.g., Bitnami)
