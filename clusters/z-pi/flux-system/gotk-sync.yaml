@@ -19,7 +19,6 @@ metadata:
   name: flux-system
   namespace: flux-system
 spec:
-  debug: true
   interval: 1m0s
   timeout: 5m0s
   path: ./clusters/z-pi
@@ -27,4 +26,3 @@ spec:
   sourceRef:
     kind: GitRepository
     name: homelab
-    name-space: flux-system

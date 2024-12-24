@@ -5,3 +5,4 @@ metadata:
   namespace: flux-system
 spec:
   url: https://charts.bitnami.com/bitnami  # Use the repository URL you want (e.g., Bitnami)
+  interval: 1m0s
