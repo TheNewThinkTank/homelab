@@ -9,3 +9,5 @@
 my device: `z-pi`
 
 my id: `gus`
+
+[Flux concepts](https://fluxcd.io/flux/concepts/)
