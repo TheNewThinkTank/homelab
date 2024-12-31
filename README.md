@@ -32,3 +32,7 @@ Use the NodePort to access Prometheus or Grafana in browser, e.g.:
 
 **Prometheus**: `http://<z-pi-ip>:<prometheus-nodeport>`
 **Grafana**: `http://<z-pi-ip>:<grafana-nodeport>`
+
+## For contributors
+
+[Project tracking](https://thenewthinktank.atlassian.net/jira/software/projects/HOM/boards/3)
