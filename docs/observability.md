@@ -1,12 +1,12 @@
-## Verify Prometheus and Grafana Installation
+# Verify Prometheus and Grafana Installation
 
 Check pods in monitoring namespace to confirm that Prometheus and Grafana are running:
 
 ```bash
-kubectl get pods -n monitoring
+k get po -n monitoring
 
 # Check services to get the NodePort for accessing Prometheus and Grafana
-kubectl get services -n monitoring
+k get svc -n monitoring
 ```
 
 Use the NodePort to access Prometheus or Grafana in browser, e.g.:

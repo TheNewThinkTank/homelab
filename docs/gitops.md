@@ -1,4 +1,4 @@
-## Check Flux Sync
+# Check Flux Sync
 
 Trigger a manual Flux reconciliation to ensure all the changes are applied:
 
