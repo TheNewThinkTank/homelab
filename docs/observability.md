@@ -1,4 +1,6 @@
-# Verify Prometheus and Grafana Installation
+# Observability
+
+## Verify Prometheus and Grafana Installation
 
 Check pods in monitoring namespace to confirm that Prometheus and Grafana are running:
 
