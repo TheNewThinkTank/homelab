@@ -71,3 +71,16 @@ Host asus-pn51
   User "<JohnDoe>"
   SetEnv TERM=xterm-256color
 ```
+
+```bash
+ssh-keygen -t ed25519 -C "Asus PN51"
+ssh-copy-id "<JohnDoe>"@"<IPv4>"
+
+# test that these fail
+ssh fake@"<IPv4>"
+ssh root@"<IPv4>"
+
+# test that these succeed
+ssh "<JohnDoe>"@"<IPv4>"
+ssh asus-pn51
+```
