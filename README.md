@@ -1,6 +1,6 @@
 # homelab
 
-My home Lab setup running K8S on `Asus PN51` and `Raspberry Pi 5`.
+My home Lab setup running K8S on `Asus PN51` (RKE2) and `Raspberry Pi 5` (K3S).
 
 ## For contributors
 
