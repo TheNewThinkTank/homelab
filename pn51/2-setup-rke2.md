@@ -4,6 +4,28 @@
 
 ```bash
 sudo -i
+nano /etc/sysctl.conf
+```
+
+add the following
+```text
+- name: Enable IPv4 forwarding
+ansible.posix.systtl:
+name: net.ipv4.ip_forward
+value: "1"
+state: present
+reload: true
+```
+
+make the change active/permanent by running:
+`sysctl -p /etc/sysctl.conf`
+
+or
+`/etc/init.d/procps restart`
+
+```bash
+apt-get update
+apt install curl
 
 curl -sfL https://get.rke2.io | sh -
 
