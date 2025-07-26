@@ -7,14 +7,17 @@ sudo -i
 nano /etc/sysctl.conf
 ```
 
-add the following
+add the following to enable IPv4 forwarding:
+`net.ipv4.ip_forward = 1`
+
+or, using Ansible:
 ```text
 - name: Enable IPv4 forwarding
-ansible.posix.systtl:
-name: net.ipv4.ip_forward
-value: "1"
-state: present
-reload: true
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    state: present
+    reload: true
 ```
 
 make the change active/permanent by running:
