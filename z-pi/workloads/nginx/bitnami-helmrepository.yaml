@@ -1,8 +1,0 @@
-apiVersion: source.toolkit.fluxcd.io/v1beta1
-kind: HelmRepository
-metadata:
-  name: bitnami  # This should match the reference in your HelmRelease
-  namespace: flux-system
-spec:
-  url: https://charts.bitnami.com/bitnami  # Use the repository URL you want (e.g., Bitnami)
-  interval: 1m0s
