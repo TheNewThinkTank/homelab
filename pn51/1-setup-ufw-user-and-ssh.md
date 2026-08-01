@@ -33,7 +33,7 @@ usermod -aG sudo "<JohnDoe>"
 Get IPv4: `hostname -I`
 
 ```bash
-sudo nano /etc/ssh/sshd_config
+sudo vim /etc/ssh/sshd_config
 ```
 
 Ensure following is set:

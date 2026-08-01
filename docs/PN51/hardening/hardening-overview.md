@@ -1,10 +1,10 @@
 # Linux Hardening for Asus PN51 Mini PC
 
-Based on my setup (Asus PN51 running Ubuntu via Ventoy for hobby projects including self-hosted K8S), implementing some security hardening measures is beneficial, since I will be hosting web applications that may be accessible from the internet.
+Based on my setup (Asus PN51 running Ubuntu for hobby projects including self-hosted K8S), implementing some security hardening measures is beneficial, since I will be hosting web applications that may be accessible from the internet.
 
 My activities listed below increase my attack surface, making security hardening important.
 - Self-hosting web applications
-- Running a Kubernetes cluster (RKE)
+- Running a Kubernetes cluster (K3S)
 - Using ArgoCD for deployments
 - Maintaining public GitHub repositories
 
@@ -33,7 +33,7 @@ For my specific setup (home K8S cluster with web apps), I prioritize:
 
 ### 3. K8S-Specific Security
 
-Since I am running RKE, I also plan to:
+Since I am running K3S, I also plan to:
 - Implement network policies
 - Use RBAC properly
 - Consider tools like Falco for runtime security monitoring

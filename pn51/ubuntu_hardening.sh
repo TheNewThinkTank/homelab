@@ -35,7 +35,7 @@ ufw allow 2379:2380/tcp  # etcd server client API
 ufw allow 10250/tcp  # Kubelet API
 ufw allow 10251/tcp  # kube-scheduler
 ufw allow 10252/tcp  # kube-controller-manager
-# If you're exposing services via NodePort
+# For exposing services via NodePort
 ufw allow 30000:32767/tcp
 # Enable firewall
 ufw --force enable

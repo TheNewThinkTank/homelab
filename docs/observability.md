@@ -13,5 +13,5 @@ k get svc -n monitoring
 
 Use the NodePort to access Prometheus or Grafana in browser, e.g.:
 
-**Prometheus**: `http://<z-pi-ip>:<prometheus-nodeport>`
-**Grafana**: `http://<z-pi-ip>:<grafana-nodeport>`
+**Prometheus**: `http://<pn51-ip>:<prometheus-nodeport>`
+**Grafana**: `http://<pn51-ip>:<grafana-nodeport>`

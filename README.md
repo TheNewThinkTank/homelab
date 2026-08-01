@@ -18,8 +18,8 @@ uv add mkdocs-material
 
 ## TODOs
 
-- [ ] Clean up docs/
-- [ ] Remove Raspberry pi
+- [x] Clean up docs/
+- [x] Remove Raspberry pi
 - [ ] Replace FLUX CD with Argo CD
 - [ ] Add K8S manifest dirs and files
 - [ ] Add docs for monitoring setup

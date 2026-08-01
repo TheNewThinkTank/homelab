@@ -1,3 +1,3 @@
 # homelab
 
-K8S clusters running on PN51 and Raspberry Pi 5
+K8S (K3S) cluster running on PN51.
