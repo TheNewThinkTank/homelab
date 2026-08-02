@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fitness-tracker-backend
+  namespace: default
+  labels:
+    app: fitness-tracker-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fitness-tracker-backend
+  template:
+    metadata:
+      labels:
+        app: fitness-tracker-backend
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+
+      volumes:
+        - name: credentials
+          secret:
+            secretName: fitness-tracker-secret
+            items:
+              - key: CREDENTIALS_JSON
+                path: credentials.json
+
+      containers:
+        - name: backend
+          image: ghcr.io/thenewthinktank/fitness-tracker:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+
+          envFrom:
+            - configMapRef:
+                name: fitness-tracker-config
+
+          env:
+            - name: EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: fitness-tracker-secret
+                  key: EMAIL
+
+          volumeMounts:
+            - name: credentials
+              mountPath: /code/local_assets
+              readOnly: true
+
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+      restartPolicy: Always

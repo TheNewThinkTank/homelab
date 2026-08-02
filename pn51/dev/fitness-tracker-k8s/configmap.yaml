@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fitness-tracker-config
+  namespace: default
+data:
+  GOOGLE_DRIVE_DATA_PATH: "data"
+  # USER and ATHLETE are non-sensitive — put them here.
+  # EMAIL could go here too if you consider it non-sensitive in your context.
+  USER: "your_username"
+  ATHLETE: "your_athlete_name"
