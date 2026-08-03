@@ -1,0 +1,174 @@
+---
+- name: Bootstrap Ubuntu home-lab node
+  hosts: homelab_nodes
+  become: true
+  vars:
+    ubuntu_packages:
+      - openssh-server
+      - curl
+      - wget
+      - git
+      - vim
+      - nano
+      - tmux
+      - htop
+      - btop
+      - tree
+      - jq
+      - unzip
+      - ca-certificates
+      - gnupg
+      - net-tools
+      - dnsutils
+      - traceroute
+      - nmap
+      - build-essential
+      - python3
+      - python3-pip
+      - python3-venv
+    ssh_allowed_users:
+      - ubuntu
+    ufw_allowed_tcp_ports:
+      - 22
+      - 6443
+      - 2379:2380
+      - 10250
+      - 10251
+      - 10252
+      - 30000:32767
+  tasks:
+    - name: Update apt cache and upgrade packages
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+        autoremove: true
+        autoclean: true
+
+    - name: Install base packages
+      ansible.builtin.apt:
+        name: "{{ ubuntu_packages }}"
+        state: present
+
+    - name: Ensure SSH service is enabled and running
+      ansible.builtin.service:
+        name: ssh
+        enabled: true
+        state: started
+
+    - name: Install unattended upgrades
+      ansible.builtin.apt:
+        name: unattended-upgrades
+        state: present
+
+    - name: Configure periodic security updates
+      ansible.builtin.copy:
+        dest: /etc/apt/apt.conf.d/20auto-upgrades
+        content: |
+          APT::Periodic::Update-Package-Lists "1";
+          APT::Periodic::Unattended-Upgrade "1";
+          APT::Periodic::AutocleanInterval "7";
+        mode: '0644'
+
+    - name: Ensure SSH hardening config exists
+      ansible.builtin.copy:
+        dest: /etc/ssh/sshd_config.d/99-hardening.conf
+        content: |
+          PermitRootLogin no
+          PasswordAuthentication no
+          PermitEmptyPasswords no
+          KbdInteractiveAuthentication no
+          X11Forwarding no
+          PrintMotd no
+          Protocol 2
+          AuthenticationMethods publickey
+        mode: '0600'
+
+    - name: Ensure sshd includes the hardening config directory
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^Include /etc/ssh/sshd_config.d/\*\.conf$'
+        line: 'Include /etc/ssh/sshd_config.d/*.conf'
+        create: true
+
+    - name: Restart SSH service
+      ansible.builtin.service:
+        name: ssh
+        state: restarted
+
+    - name: Configure UFW defaults
+      community.general.ufw:
+        state: enabled
+        direction: incoming
+        policy: deny
+
+    - name: Configure UFW outgoing policy
+      community.general.ufw:
+        direction: outgoing
+        policy: allow
+        state: enabled
+
+    - name: Allow SSH and Kubernetes-related TCP ports
+      community.general.ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+        state: enabled
+      loop: "{{ ufw_allowed_tcp_ports }}"
+
+    - name: Install fail2ban
+      ansible.builtin.apt:
+        name: fail2ban
+        state: present
+
+    - name: Enable fail2ban service
+      ansible.builtin.service:
+        name: fail2ban
+        enabled: true
+        state: started
+
+    - name: Configure sysctl hardening
+      ansible.builtin.copy:
+        dest: /etc/sysctl.d/99-security.conf
+        content: |
+          net.ipv4.conf.all.rp_filter = 1
+          net.ipv4.conf.default.rp_filter = 1
+          net.ipv4.icmp_echo_ignore_broadcasts = 1
+          net.ipv4.conf.all.accept_source_route = 0
+          net.ipv4.conf.default.accept_source_route = 0
+          net.ipv4.conf.all.send_redirects = 0
+          net.ipv4.conf.default.send_redirects = 0
+          net.ipv4.tcp_syncookies = 1
+          net.ipv4.tcp_max_syn_backlog = 2048
+          net.ipv4.tcp_synack_retries = 2
+          net.ipv4.tcp_syn_retries = 5
+          net.ipv4.conf.all.log_martians = 1
+          net.ipv4.conf.default.log_martians = 1
+          net.ipv6.conf.all.disable_ipv6 = 1
+          net.ipv6.conf.default.disable_ipv6 = 1
+          net.ipv6.conf.lo.disable_ipv6 = 1
+        mode: '0644'
+
+    - name: Apply sysctl settings
+      ansible.builtin.command: sysctl --system
+      changed_when: false
+
+    - name: Install audit tools
+      ansible.builtin.apt:
+        name:
+          - lynis
+          - rkhunter
+          - auditd
+          - logwatch
+          - clamav
+          - clamav-daemon
+        state: present
+
+    - name: Enable audit and antivirus services
+      ansible.builtin.service:
+        name: "{{ item }}"
+        enabled: true
+        state: started
+      loop:
+        - auditd
+        - clamav-freshclam
+        - clamav-daemon

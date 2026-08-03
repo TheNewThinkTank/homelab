@@ -1,58 +1,44 @@
 #!/usr/bin/env bash
 
-# 
-# The script disables password SSH login. Before running that section, make sure:
-# cat ~/.ssh/authorized_keys
-# exists on the node.
-# 
-# 
-# After running this script,
-# 
-# sudo hostnamectl set-hostname <e.g. asus-pn51>
-# 
-# Then update:
-# sudo vim /etc/hosts
-# with
-# e.g. 127.0.1.1 asus-pn51
-# 
-# Reserve the DHCP address
-#
-# e.g. asus-pn51 → 192.168.1.30
-# or raspberry-pi → 192.168.1.40
-#
+# Bootstrap a Ubuntu node for home-lab use.
+# After running this script:
+#   sudo hostnamectl set-hostname <name>
+#   sudo vim /etc/hosts
+# Reserve a DHCP address in your router (for example 192.168.1.30).
 
 set -euo pipefail
 
+if [[ ${EUID} -ne 0 ]]; then
+    echo "Run this script as root or with sudo." >&2
+    exit 1
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+USERNAME="${SUDO_USER:-${USER:-ubuntu}}"
+HOME_DIR="/root"
+
+if [[ "${USERNAME}" != "root" ]]; then
+    HOME_DIR="/home/${USERNAME}"
+fi
+
+BASHRC="${HOME_DIR}/.bashrc"
+
+ensure_package() {
+    local pkg="$1"
+    if ! dpkg -s "$pkg" >/dev/null 2>&1; then
+        apt-get update -qq
+        apt-get install -y --no-install-recommends "$pkg"
+    fi
+}
+
 echo "==> Ubuntu node bootstrap starting..."
-
-# ------------------------------------------------------------
-# Basic variables
-# ------------------------------------------------------------
-
-USERNAME="${SUDO_USER:-$USER}"
-
 echo "==> Configuring user: ${USERNAME}"
-
-# ------------------------------------------------------------
-# Update system
-# ------------------------------------------------------------
-
 echo "==> Updating package lists"
-
-apt update
-
+apt-get update -qq
 echo "==> Upgrading installed packages"
-
-DEBIAN_FRONTEND=noninteractive apt full-upgrade -y
-
-
-# ------------------------------------------------------------
-# Install common tools
-# ------------------------------------------------------------
-
+DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
 echo "==> Installing base packages"
-
-apt install -y \
+for pkg in \
     openssh-server \
     curl \
     wget \
@@ -74,67 +60,29 @@ apt install -y \
     build-essential \
     python3 \
     python3-pip \
-    python3-venv
-
-
-# ------------------------------------------------------------
-# Enable SSH server
-# ------------------------------------------------------------
+    python3-venv; do
+    ensure_package "$pkg"
+done
 
 echo "==> Enabling SSH"
-
 systemctl enable --now ssh
-
 echo "SSH status:"
 systemctl --no-pager status ssh | head -20
 
-
-# ------------------------------------------------------------
-# SSH hardening basics
-# ------------------------------------------------------------
-
-echo "==> Applying SSH configuration"
-
-SSHD_CONFIG="/etc/ssh/sshd_config"
-
-# Disable password login if SSH keys are already configured.
-# Comment this out if you still need password-based SSH.
-sed -i 's/^#\?PasswordAuthentication .*/PasswordAuthentication no/' \
-    "${SSHD_CONFIG}"
-
-sed -i 's/^#\?PubkeyAuthentication .*/PubkeyAuthentication yes/' \
-    "${SSHD_CONFIG}"
-
-systemctl restart ssh
-
-
-# ------------------------------------------------------------
-# User SSH directory permissions
-# ------------------------------------------------------------
-
 echo "==> Fixing SSH permissions"
+if [[ -d "${HOME_DIR}/.ssh" ]]; then
+    chown -R "${USERNAME}:${USERNAME}" "${HOME_DIR}/.ssh"
+    chmod 700 "${HOME_DIR}/.ssh"
 
-if [ -d "/home/${USERNAME}/.ssh" ]; then
-    chown -R "${USERNAME}:${USERNAME}" "/home/${USERNAME}/.ssh"
-    chmod 700 "/home/${USERNAME}/.ssh"
-
-    if [ -f "/home/${USERNAME}/.ssh/authorized_keys" ]; then
-        chmod 600 "/home/${USERNAME}/.ssh/authorized_keys"
+    if [[ -f "${HOME_DIR}/.ssh/authorized_keys" ]]; then
+        chmod 600 "${HOME_DIR}/.ssh/authorized_keys"
     fi
 fi
 
-
-# ------------------------------------------------------------
-# Useful shell settings
-# ------------------------------------------------------------
-
 echo "==> Adding useful aliases"
-
-BASHRC="/home/${USERNAME}/.bashrc"
-
+touch "${BASHRC}"
 if ! grep -q "bootstrap aliases" "${BASHRC}"; then
-
-cat <<'EOF' >> "${BASHRC}"
+    cat <<'EOF' >> "${BASHRC}"
 
 # bootstrap aliases
 alias ll='ls -alF'
@@ -144,43 +92,23 @@ alias k='kubectl'
 alias d='docker'
 
 EOF
-
 fi
 
-
-# ------------------------------------------------------------
-# Time synchronisation
-# ------------------------------------------------------------
-
 echo "==> Enabling time synchronisation"
-
-timedatectl set-ntp true
-
-
-# ------------------------------------------------------------
-# Firewall
-# ------------------------------------------------------------
-
-echo "==> Configuring firewall"
-
-apt install -y ufw
-
-ufw allow ssh
-ufw --force enable
-
-
-# ------------------------------------------------------------
-# Disable unnecessary sleep (desktop -> server behaviour)
-# ------------------------------------------------------------
+if command -v timedatectl >/dev/null 2>&1; then
+    timedatectl set-ntp true
+fi
 
 echo "==> Disabling automatic sleep"
+systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target 2>/dev/null || true
 
-systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
-
-
-# ------------------------------------------------------------
-# Network information
-# ------------------------------------------------------------
+echo "==> Applying hardening baseline"
+if [[ -x "${SCRIPT_DIR}/ubuntu_hardening.sh" ]]; then
+    bash "${SCRIPT_DIR}/ubuntu_hardening.sh"
+else
+    echo "Hardening script not found at ${SCRIPT_DIR}/ubuntu_hardening.sh" >&2
+    exit 1
+fi
 
 echo
 echo "======================================"

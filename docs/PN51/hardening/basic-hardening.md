@@ -1,6 +1,8 @@
 # Basic Linux Hardening Script for Ubuntu
 
-My basic [hardening script](../../../pn51/ubuntu_hardening.sh) for my Ubuntu system running on the Asus PN51. This script `ubuntu_hardening.sh` covers essential security measures without being overly aggressive, making it suitable for my home K8S setup.
+My basic [hardening script](../../../pn51/ubuntu_hardening.sh) for my Ubuntu system running on the Asus PN51. This script covers essential security measures without being overly aggressive, making it suitable for my home K8S setup.
+
+For repeatable provisioning across nodes, I also keep a matching Ansible playbook in [pn51/ansible/playbook.yml](../../../pn51/ansible/playbook.yml). The shell script remains useful for a one-off manual bootstrap, but Ansible is the preferred approach for re-running the same setup safely.
 
 ## Important Notes Before Running This Script:
 
@@ -9,7 +11,7 @@ My basic [hardening script](../../../pn51/ubuntu_hardening.sh) for my Ubuntu sys
 2. **SSH Warning**: The script disables password authentication for SSH and requires key-based authentication.
 Make sure you have SSH keys set up before running this script, or you might lock yourself out.
 
-3. **Firewall Configuration**: The script includes common K8S ports, but you may need to adjust these based on your specific RKE setup.
+3. **Firewall Configuration**: The script includes common K8S ports, but you may need to adjust these based on your specific K8S setup.
 
 4. **Backup**: Always create a system backup before applying security hardening measures.
 

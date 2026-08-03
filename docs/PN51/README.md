@@ -14,7 +14,8 @@ Asus PN51
 - TODO: setup Firewall: (e.g. Cloudflare tunnels)
 - TODO: setup Auth proxy: (e.g. Authelia)
 
-### USB content
+### Provisioning
 
-- [ventoy](https://ventoy.net) (boot loader)
-- Linux images
+- Preferred provisioning flow: [pn51/ansible/playbook.yml](../../pn51/ansible/playbook.yml)
+- Manual bootstrap fallback: [pn51/ubuntu-node-bootstrap.sh](../../pn51/ubuntu-node-bootstrap.sh)
+- Security hardening script: [pn51/ubuntu_hardening.sh](../../pn51/ubuntu_hardening.sh)
