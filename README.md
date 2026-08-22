@@ -22,6 +22,9 @@ For repeatable Ubuntu node setup, the preferred path is the Ansible playbook in 
 
 ## TODOs
 
+- [ ] Host LLMs
+- [ ] Host my own custom apps (fitness-tracker etc.)
+
 - [x] Clean up docs/
 - [x] Remove Raspberry pi
 - [x] Replace FLUX CD with Argo CD
