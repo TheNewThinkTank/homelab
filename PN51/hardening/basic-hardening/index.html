@@ -6,10 +6,12 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
+        <meta name="description" content="Reproducible Ubuntu Desktop and K3s infrastructure for the Asus PN51">
       
       
       
-        <link rel="prev" href="../../architecture-diagrams/">
+      
+        <link rel="prev" href="../../../security/">
       
       
         <link rel="next" href="../hardening-overview/">
@@ -23,7 +25,7 @@
     
     
       
-        <title>Basic Linux Hardening Script for Ubuntu - homelab</title>
+        <title>Guest Baseline - homelab</title>
       
     
     
@@ -74,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#basic-linux-hardening-script-for-ubuntu" class="md-skip">
+        <a href="#guest-baseline" class="md-skip">
           Skip to content
         </a>
       
@@ -108,7 +110,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Basic Linux Hardening Script for Ubuntu
+              Guest Baseline
             
           </span>
         </div>
@@ -189,6 +191,18 @@
       
     
     
+      <div class="md-header__source">
+        <a href="https://github.com/TheNewThinkTank/homelab" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    TheNewThinkTank/homelab
+  </div>
+</a>
+      </div>
+    
   </nav>
   
 </header>
@@ -215,7 +229,7 @@
   
     
   
-  homelab
+  Overview
 
       </a>
     </li>
@@ -228,13 +242,52 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../../gitops/" class="md-tabs__link">
+      <a href="../../../provisioning/" class="md-tabs__link">
         
   
   
     
   
-  GitOps
+  Provisioning
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../" class="md-tabs__link">
+          
+  
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../operations/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Operations
 
       </a>
     </li>
@@ -253,7 +306,7 @@
   
     
   
-  Observability
+  Monitoring
 
       </a>
     </li>
@@ -270,15 +323,72 @@
     
     
       <li class="md-tabs__item md-tabs__item--active">
-        <a href="../../" class="md-tabs__link">
+        <a href="../../../security/" class="md-tabs__link">
           
   
   
-  PN51
+  Security
 
         </a>
       </li>
     
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../reference/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Reference
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../testing/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Testing
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../gitops/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Optional GitOps
+
+      </a>
+    </li>
   
 
       
@@ -315,6 +425,18 @@
     homelab
   </label>
   
+    <div class="md-nav__source">
+      <a href="https://github.com/TheNewThinkTank/homelab" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    TheNewThinkTank/homelab
+  </div>
+</a>
+    </div>
+  
   <ul class="md-nav__list" data-md-scrollfix>
     
       
@@ -331,7 +453,7 @@
   <span class="md-ellipsis">
     
   
-    homelab
+    Overview
   
 
     
@@ -351,14 +473,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../gitops/" class="md-nav__link">
+      <a href="../../../provisioning/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    GitOps
+    Provisioning
   
 
     
@@ -377,63 +499,31 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../../observability/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Observability
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-    
-  
-  
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
             
   
   
   <span class="md-ellipsis">
     
   
-    PN51
+    Architecture
   
 
     
@@ -444,12 +534,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
   
-    PN51
+    Architecture
   
 
           </label>
@@ -469,7 +559,7 @@
   <span class="md-ellipsis">
     
   
-    Index
+    Hardware
   
 
     
@@ -497,7 +587,7 @@
   <span class="md-ellipsis">
     
   
-    Architecture Diagrams
+    Decisions and Diagrams
   
 
     
@@ -511,23 +601,84 @@
 
               
             
-              
-                
+          </ul>
+        </nav>
+      
+    </li>
   
-  
-    
-  
-  
-  
-    
-    
-    
+
     
       
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monitoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
       
         
-          
-          
+        
+      
+      
         
       
     
@@ -536,17 +687,17 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
         
           
-          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
             
   
   
   <span class="md-ellipsis">
     
   
-    Hardening
+    Security
   
 
     
@@ -557,16 +708,44 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_4_3">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
   
-    Hardening
+    Security
   
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Secrets and Network Boundaries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -591,7 +770,7 @@
   <span class="md-ellipsis">
     
   
-    Basic Linux Hardening Script for Ubuntu
+    Guest Baseline
   
 
     
@@ -609,7 +788,7 @@
   <span class="md-ellipsis">
     
   
-    Basic Linux Hardening Script for Ubuntu
+    Guest Baseline
   
 
     
@@ -635,10 +814,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#important-notes-before-running-this-script" class="md-nav__link">
+  <a href="#enforced-state" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Important Notes Before Running This Script:
+        Enforced State
       
     </span>
   </a>
@@ -646,21 +825,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#how-to-use-the-script" class="md-nav__link">
+  <a href="#how-to-verify-the-baseline" class="md-nav__link">
     <span class="md-ellipsis">
       
-        How to Use the Script:
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#additional-k8s-specific-security" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Additional K8S-Specific Security
+        How to Verify the Baseline
       
     </span>
   </a>
@@ -690,7 +858,7 @@
   <span class="md-ellipsis">
     
   
-    Linux Hardening for Asus PN51 Mini PC
+    Threat Model
   
 
     
@@ -710,11 +878,84 @@
     </li>
   
 
-              
-            
-          </ul>
-        </nav>
+    
       
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../gitops/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Optional GitOps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -735,74 +976,49 @@
                   
 
 
-
-<h1 id="basic-linux-hardening-script-for-ubuntu">Basic Linux Hardening Script for Ubuntu</h1>
-<p>My basic <a href="../../../pn51/ubuntu_hardening.sh">hardening script</a> for my Ubuntu system running on the Asus PN51. This script covers essential security measures without being overly aggressive, making it suitable for my home K8S setup.</p>
-<p>For repeatable provisioning across nodes, I also keep a matching Ansible playbook in <a href="../../../pn51/ansible/playbook.yml">pn51/ansible/playbook.yml</a>. The shell script remains useful for a one-off manual bootstrap, but Ansible is the preferred approach for re-running the same setup safely.</p>
-<h2 id="important-notes-before-running-this-script">Important Notes Before Running This Script:</h2>
-<ol>
-<li>
-<p><strong>Review the script carefully</strong> before running it to ensure it aligns with your specific needs.</p>
-</li>
-<li>
-<p><strong>SSH Warning</strong>: The script disables password authentication for SSH and requires key-based authentication.
-Make sure you have SSH keys set up before running this script, or you might lock yourself out.</p>
-</li>
-<li>
-<p><strong>Firewall Configuration</strong>: The script includes common K8S ports, but you may need to adjust these based on your specific K8S setup.</p>
-</li>
-<li>
-<p><strong>Backup</strong>: Always create a system backup before applying security hardening measures.</p>
-</li>
-<li>
-<p><strong>Testing</strong>: Consider testing this script in a non-production environment first.</p>
-</li>
-</ol>
-<h2 id="how-to-use-the-script">How to Use the Script:</h2>
-<ol>
-<li>Save the script to a file named <code>ubuntu_hardening.sh</code></li>
-<li>Make it executable: <code>chmod +x ubuntu_hardening.sh</code></li>
-<li>Run it with sudo: <code>sudo ./ubuntu_hardening.sh</code></li>
-<li>Reboot your system after completion</li>
-</ol>
-<h2 id="additional-k8s-specific-security">Additional K8S-Specific Security</h2>
-<p>For my K8S environment, I am considering these additional measures (not included in the script):</p>
-<ol>
-<li>Use <code>kube-bench</code> to check my cluster against CIS K8S Benchmarks</li>
-<li>Implement network policies to restrict pod-to-pod communication</li>
-<li>Use RBAC properly to limit access to the K8S API</li>
-<li>Implementing a service mesh like Istio for additional security controls</li>
-<li>Use secrets management solutions rather than storing secrets in plain text</li>
-</ol>
-
-
-
-
-
-
-
-
-  <aside class="md-source-file">
-    
-    
-    
-      
   
-  <span class="md-source-file__fact">
-    <span class="md-icon" title="Contributors">
-      
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 4a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4"/></svg>
-      
-    </span>
-    <nav>
-      
-        <a href="mailto:thenewthinktank@users.noreply.github.com">Gustav Rasmussen</a>
-    </nav>
-  </span>
+  
 
-    
-    
-  </aside>
+
+<h1 id="guest-baseline">Guest Baseline</h1>
+<p>The Ansible baseline role is the only supported guest-bootstrap path. Do not run
+the former one-off hardening scripts over these nodes; their UFW, reverse-path
+filtering, package-upgrade, and service behavior conflict with this design.</p>
+<h2 id="enforced-state">Enforced State</h2>
+<ul>
+<li>Ubuntu 26.04 x86-64 guest and minimum-memory assertions, after cloud-init.</li>
+<li>Full Desktop, OpenSSH, AppArmor, guest agent, and security-update packages.</li>
+<li>Public-key SSH only, no root SSH, low authentication-attempt limit, early
+    drop-in precedence, and configuration validation before a conditional reload.</li>
+<li>Root-only K3s config/token and administrator kubeconfig; no token in systemd
+    arguments or Terraform state.</li>
+<li>Persisted bridge-netfilter/overlay modules, forwarding enabled, and CNI-safe
+    reverse-path filtering. Kubernetes kernel-protection defaults are explicit.</li>
+<li>Swap removed from active state and fstab; desktop sleep/suspend targets masked.</li>
+<li>Security updates enabled without automatic reboots.</li>
+<li>Desktop graphical target enabled; optional vaulted console password hash does
+    not enable password SSH.</li>
+</ul>
+<p>VM ingress is enforced by Proxmox, not by duplicating iptables policy with guest
+UFW. Keep the datacenter firewall active and validate the boundary from another
+machine. AppArmor remains enabled; this is not a CIS certification claim.</p>
+<h2 id="how-to-verify-the-baseline">How to Verify the Baseline</h2>
+<p>Run <code>make configure</code>, inspect the guests' Desktop consoles, then run
+<code>make verify</code> and <code>make idempotence</code>. On each guest, inspect SSH's effective
+configuration with <code>sudo sshd -T</code>, swap with <code>swapon --show</code>, and the boot target
+with <code>systemctl get-default</code>.</p>
+<p>If networking fails, inspect the exact Proxmox rules, kernel settings, CNI pods,
+and routes before adding broad allow rules. If SSH hardening fails validation,
+keep the existing verified connection open and repair the failing setting.</p>
+<p>See <a href="../../../security/">security boundaries</a>, <a href="../../../testing/">testing</a>, and
+<a href="../../../operations/">maintenance</a>.</p>
+
+
+
+
+
+
+
 
 
 

@@ -1,0 +1,1620 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Reproducible Ubuntu Desktop and K3s infrastructure for the Asus PN51">
+      
+      
+      
+      
+        <link rel="prev" href="../PN51/hardening/hardening-overview/">
+      
+      
+        <link rel="next" href="../testing/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Reference - homelab</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="purple">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#configuration-and-command-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="homelab" class="md-header__button md-logo" aria-label="homelab" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            homelab
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Reference
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="purple"  aria-label="Switch to Dark Mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to Dark Mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 6H7c-3.31 0-6 2.69-6 6s2.69 6 6 6h10c3.31 0 6-2.69 6-6s-2.69-6-6-6m0 10H7c-2.21 0-4-1.79-4-4s1.79-4 4-4h10c2.21 0 4 1.79 4 4s-1.79 4-4 4M7 9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="lime"  aria-label="Switch to Light Mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to Light Mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 7H7a5 5 0 0 0-5 5 5 5 0 0 0 5 5h10a5 5 0 0 0 5-5 5 5 0 0 0-5-5m0 8a3 3 0 0 1-3-3 3 3 0 0 1 3-3 3 3 0 0 1 3 3 3 3 0 0 1-3 3"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/TheNewThinkTank/homelab" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    TheNewThinkTank/homelab
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Overview
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../provisioning/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Provisioning
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../PN51/" class="md-tabs__link">
+          
+  
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../operations/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Operations
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../observability/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Monitoring
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../security/" class="md-tabs__link">
+          
+  
+  
+  Security
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Reference
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../testing/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Testing
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../gitops/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Optional GitOps
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="homelab" class="md-nav__button md-logo" aria-label="homelab" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    homelab
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/TheNewThinkTank/homelab" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    TheNewThinkTank/homelab
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../provisioning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Provisioning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PN51/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PN51/architecture-diagrams/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Decisions and Diagrams
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monitoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Security
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Secrets and Network Boundaries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PN51/hardening/basic-hardening/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guest Baseline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PN51/hardening/hardening-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Threat Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#versions-and-artifacts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Versions and Artifacts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#terraform-inputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Terraform Inputs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Terraform Inputs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#outputs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Outputs
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#controller-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Controller Environment
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#vault-schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vault Schema
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Commands
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optional-dotfiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional Dotfiles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#monitoring-budget" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Monitoring Budget
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gitops/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Optional GitOps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="configuration-and-command-reference">Configuration and Command Reference</h1>
+<p>Run commands from the repository root. Relative inventory, role, collection,
+and local-artifact paths depend on that working directory.</p>
+<h2 id="versions-and-artifacts">Versions and Artifacts</h2>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Pin or supported range</th>
+<th>Location</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Proxmox VE</td>
+<td>9.x prerequisite</td>
+<td>Existing hypervisor; not installed by automation</td>
+</tr>
+<tr>
+<td>Terraform</td>
+<td><code>&gt;= 1.10, &lt; 2</code>; CI uses <code>1.16.6</code></td>
+<td>Terraform required-version constraint</td>
+</tr>
+<tr>
+<td>Proxmox provider</td>
+<td><code>bpg/proxmox</code> <code>0.116.1</code></td>
+<td>Terraform versions and provider lockfile</td>
+</tr>
+<tr>
+<td>Ubuntu base</td>
+<td>26.04 amd64, build <code>20260927</code></td>
+<td>Terraform image URL and SHA-256</td>
+</tr>
+<tr>
+<td>Desktop</td>
+<td>Full <code>ubuntu-desktop</code> metapackage</td>
+<td>Baseline role; current packages from Ubuntu repositories</td>
+</tr>
+<tr>
+<td>K3s</td>
+<td><code>v1.37.1+k3s1</code></td>
+<td>Ansible group variables; binary SHA-256</td>
+</tr>
+<tr>
+<td>Helm</td>
+<td>3.x; CI uses <code>3.22.1</code></td>
+<td>Local CLI and CI setup</td>
+</tr>
+<tr>
+<td>Monitoring chart</td>
+<td><code>92.9.0</code></td>
+<td>Ansible group variables; archive SHA-256</td>
+</tr>
+<tr>
+<td>Python</td>
+<td>3.13 or 3.14; CI uses 3.13</td>
+<td>Project constraint and <code>uv.lock</code></td>
+</tr>
+<tr>
+<td>Ansible</td>
+<td>Core <code>2.20.6</code></td>
+<td>Project dependencies and <code>uv.lock</code></td>
+</tr>
+<tr>
+<td>Collections</td>
+<td><code>ansible.posix</code> <code>2.1.0</code>, <code>kubernetes.core</code> <code>6.1.0</code></td>
+<td>Ansible requirements</td>
+</tr>
+</tbody>
+</table>
+<p>Image and binary pins are immutable inputs, not permission to ignore security
+updates. Ubuntu's package repositories evolve; package installation is
+convergent, not a bit-for-bit image build. Review and update version/checksum
+pairs together, commit lockfiles, then run all tests and the live gates.</p>
+<h2 id="terraform-inputs">Terraform Inputs</h2>
+<p>Copy the example into ignored <code>pn51/terraform/terraform.tfvars</code> and replace its
+public-key placeholder. It is deliberately invalid until a real public key is
+provided.</p>
+<table>
+<thead>
+<tr>
+<th>Input</th>
+<th>Type</th>
+<th>Default</th>
+<th>Constraint or behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>proxmox_node</code></td>
+<td>string</td>
+<td>required</td>
+<td>Existing Proxmox node name</td>
+</tr>
+<tr>
+<td><code>network_cidr</code></td>
+<td>string</td>
+<td>required</td>
+<td>Canonical IPv4 LAN/VLAN subnet</td>
+</tr>
+<tr>
+<td><code>gateway</code></td>
+<td>string</td>
+<td>required</td>
+<td>Usable address inside the node subnet</td>
+</tr>
+<tr>
+<td><code>admin_cidrs</code></td>
+<td>set(string)</td>
+<td>required</td>
+<td>Trusted IPv4 networks; no <code>/0</code></td>
+</tr>
+<tr>
+<td><code>ssh_public_keys</code></td>
+<td>list(string)</td>
+<td>required</td>
+<td>OpenSSH public keys, not paths or private keys</td>
+</tr>
+<tr>
+<td><code>vm_datastore</code></td>
+<td>string</td>
+<td><code>local-lvm</code></td>
+<td>Supports VM and cloud-init disks</td>
+</tr>
+<tr>
+<td><code>image_datastore</code></td>
+<td>string</td>
+<td><code>local</code></td>
+<td>File-backed; enable Import content</td>
+</tr>
+<tr>
+<td><code>bridge</code></td>
+<td>string</td>
+<td><code>vmbr0</code></td>
+<td>Pre-existing private bridge</td>
+</tr>
+<tr>
+<td><code>cluster_name</code></td>
+<td>string</td>
+<td><code>pn51</code></td>
+<td>2-32 lowercase DNS-safe characters</td>
+</tr>
+<tr>
+<td><code>vm_id_start</code></td>
+<td>number</td>
+<td><code>5100</code></td>
+<td>Integer 100-999999996; reserves four consecutive IDs</td>
+</tr>
+<tr>
+<td><code>node_ip_offset</code></td>
+<td>number</td>
+<td><code>40</code></td>
+<td>Four usable consecutive addresses, excluding gateway</td>
+</tr>
+<tr>
+<td><code>dns_servers</code></td>
+<td>list(string)</td>
+<td><code>1.1.1.1</code>, <code>9.9.9.9</code></td>
+<td>At least one reachable IPv4 resolver</td>
+</tr>
+<tr>
+<td><code>vm_memory_mb</code></td>
+<td>number</td>
+<td><code>6144</code></td>
+<td>Integer, at least 6144; multiplied by four</td>
+</tr>
+<tr>
+<td><code>vm_disk_gb</code></td>
+<td>number</td>
+<td><code>80</code></td>
+<td>Integer, at least 48; disks cannot be shrunk safely</td>
+</tr>
+<tr>
+<td><code>pod_cidr</code></td>
+<td>string</td>
+<td><code>10.42.0.0/16</code></td>
+<td>IPv4 prefix at most <code>/22</code>; immutable on a running cluster</td>
+</tr>
+<tr>
+<td><code>service_cidr</code></td>
+<td>string</td>
+<td><code>10.43.0.0/16</code></td>
+<td>IPv4 prefix at most <code>/24</code>; immutable on a running cluster</td>
+</tr>
+</tbody>
+</table>
+<p>The node, pod, and service networks must not overlap. Check router, VPN, and
+remote-site networks too: Terraform cannot discover your external routing table.
+Keep guest addresses outside DHCP and reserve IDs before the first apply.</p>
+<p>Changing the cluster name, network identity, imported base image, or disk inputs
+can be destructive or require an explicit rebuild. Always inspect the plan.</p>
+<h3 id="outputs">Outputs</h3>
+<p><code>nodes</code> maps stable names to VM IDs, roles, and addresses. <code>ansible_inventory</code>
+contains one <code>k3s_server</code>, three <code>k3s_agents</code>, SSH username, guest Python path,
+cluster CIDRs, and the service subnet's host-10 DNS address. Neither output
+contains passwords, private keys, Kubernetes tokens, or kubeconfig data.</p>
+<h2 id="controller-environment">Controller Environment</h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PROXMOX_VE_ENDPOINT</code></td>
+<td>Verified HTTPS URL, including port 8006</td>
+</tr>
+<tr>
+<td><code>PROXMOX_VE_API_TOKEN</code></td>
+<td>Dedicated API credential in provider format <code>user@realm!token=secret</code></td>
+</tr>
+<tr>
+<td><code>ANSIBLE_CONFIG</code></td>
+<td>Normally unset; the root configuration is selected automatically</td>
+</tr>
+<tr>
+<td><code>ANSIBLE_VAULT_PASSWORD_FILE</code></td>
+<td>Optional absolute path outside Git; mode 0600</td>
+</tr>
+<tr>
+<td><code>SSL_CERT_FILE</code></td>
+<td>Optional verified CA bundle for Python tooling behind a private CA</td>
+</tr>
+<tr>
+<td><code>UV_SYSTEM_CERTS=true</code></td>
+<td>Use system trust when installing controller tools behind a private CA</td>
+</tr>
+</tbody>
+</table>
+<p>Never set provider insecure mode, disable SSH host checks, or turn off Kubernetes
+TLS validation to get past a trust failure. Install the correct CA or verify the
+host fingerprint instead.</p>
+<h2 id="vault-schema">Vault Schema</h2>
+<p><code>make vault</code> generates and encrypts these fields without writing plaintext:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>k3s_token</code></td>
+<td>64 lowercase hexadecimal characters; preserve the original for restore</td>
+</tr>
+<tr>
+<td><code>grafana_admin_password</code></td>
+<td>At least 24 characters; generated value is longer</td>
+</tr>
+<tr>
+<td><code>desktop_password_hash</code></td>
+<td>Optional SHA-512-crypt (<code>$6$</code>) or yescrypt (<code>$y$</code>) hash</td>
+</tr>
+</tbody>
+</table>
+<p>The desktop password hash enables console login only. Without it, Desktop still
+boots, but the <code>ubuntu</code> password remains locked. Grafana's secret is a bootstrap
+credential: changing it does not reset an already-initialized Grafana database.</p>
+<h2 id="commands">Commands</h2>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Effect</th>
+<th>Live resources?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>make setup</code></td>
+<td>Install frozen Python dependencies and pinned local collections</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>make init</code></td>
+<td>Initialize Terraform provider/backend</td>
+<td>No mutation of VMs</td>
+</tr>
+<tr>
+<td><code>make plan</code></td>
+<td>Refresh and preview VM changes</td>
+<td>Reads Proxmox</td>
+</tr>
+<tr>
+<td><code>make apply</code></td>
+<td>Apply after Terraform confirmation</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>make inventory</code></td>
+<td>Validate Terraform outputs and write private JSON inventory</td>
+<td>Reads state</td>
+</tr>
+<tr>
+<td><code>make vault</code></td>
+<td>Prompt for vault password and create encrypted credentials</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>make configure</code></td>
+<td>Reconcile Desktop, K3s, kubeconfig, and monitoring</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>make kube-shell</code></td>
+<td>Open a controller shell with this lab's kubeconfig selected</td>
+<td>No mutation of cluster resources</td>
+</tr>
+<tr>
+<td><code>make verify</code></td>
+<td>Check nodes, versions, workloads, PVCs, health, scrape targets, Helm test</td>
+<td>Read checks plus temporary Helm test pod</td>
+</tr>
+<tr>
+<td><code>make idempotence</code></td>
+<td>Apply once, then require zero changes on a full second run</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>make replace-worker NODE=pn51-worker-2</code></td>
+<td>Plan, guard, confirm, drain, and replace only that worker</td>
+<td>Yes; destroys its root disk</td>
+</tr>
+<tr>
+<td><code>make destroy</code></td>
+<td>Destroy managed VMs, disks, and image after confirmation</td>
+<td>Yes; destructive</td>
+</tr>
+<tr>
+<td><code>make lint</code></td>
+<td>Terraform formatting, Ruff, and production Ansible lint</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>make chart-check</code></td>
+<td>Verify checksum, lint/render real chart, parse CRDs</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>make test-templates</code></td>
+<td>Render actual Ansible templates twice for four fake guests</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>make test</code></td>
+<td>Mocked Terraform, chart, template, and Python tests</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>make check</code></td>
+<td>Lint, tests, and strict documentation build</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>make secrets-scan</code></td>
+<td>Redacted Gitleaks scan of Git history</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>make docs</code> / <code>make docs-serve</code></td>
+<td>Build / preview documentation</td>
+<td>No</td>
+</tr>
+</tbody>
+</table>
+<p><code>VAULT_FILE</code> defaults to <code>.local/vault.yml</code>. <code>VAULT_ARGS</code> defaults to
+<code>--ask-vault-pass</code>; a password-file workflow can use
+<code>make configure VAULT_ARGS='--vault-password-file /absolute/private/path'</code>.
+<code>CONFIG_FILE</code> is unset by default; set it to <code>.local/config.yml</code> for optional
+non-secret Ansible settings. Both configuration and idempotence runs use the same
+file. Secret values still belong in the encrypted vault, not Make arguments.
+<code>UV</code> can select a different uv executable. Do not put secret values in Make
+arguments or extra-vars strings.</p>
+<h2 id="optional-dotfiles">Optional Dotfiles</h2>
+<p>The sibling dotfiles repository owns user configuration and its node package
+manifest. Homelab fetches a pinned public commit and delegates configuration to
+that repository; it does not copy workstation dotfiles or private overrides.</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Contract</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dotfiles_enabled</code></td>
+<td><code>false</code></td>
+<td>Enable explicitly through your private configuration</td>
+</tr>
+<tr>
+<td><code>dotfiles_repository</code></td>
+<td>Public TheNewThinkTank dotfiles HTTPS Git URL</td>
+<td>Credential-free GitHub URL</td>
+</tr>
+<tr>
+<td><code>dotfiles_revision</code></td>
+<td><code>b703d09fe26c5bd7e9daac92450f3c313a4c7c6a</code></td>
+<td>Reviewed full lowercase 40-character published commit SHA</td>
+</tr>
+<tr>
+<td><code>dotfiles_profile</code></td>
+<td><code>personal</code></td>
+<td><code>personal</code> or <code>work</code>; independent of package selection</td>
+</tr>
+<tr>
+<td><code>dotfiles_home</code></td>
+<td><code>/home/ubuntu</code></td>
+<td>Guest account boundary; the role rejects another home</td>
+</tr>
+<tr>
+<td><code>dotfiles_checkout</code></td>
+<td><code>/home/ubuntu/.local/share/dotfiles/source</code></td>
+<td>User-owned source, never root's personal configuration</td>
+</tr>
+</tbody>
+</table>
+<p>The role requires the new <code>--check</code> and <code>--package-set</code> interfaces from the
+selected commit and always selects the lightweight <code>homelab</code> package set. It
+does not invoke a full workstation package installer on every run. Ansible owns
+APT convergence; dotfiles owns the package names, plugins, configuration,
+backup/restore, and official kubectl version/checksums.</p>
+<p>kubectl is downloaded directly from <code>dl.k8s.io</code>, verified by SHA-256, and checked
+against its declared version. The selected client must be within one Kubernetes
+minor of K3s. An existing unrelated user-local binary is preserved and causes a
+clear failure rather than a silent replacement. Updating the pin may require an
+explicit, backed-up binary migration.</p>
+<p>Configuration and plugin checks return 0 when current, 3 when changes are needed,
+and another nonzero status on errors. Ansible installs only missing plugins and
+deploys configuration only after a real content difference. An unchanged second
+run creates no new configuration backups. Full live acceptance remains required.</p>
+<h2 id="monitoring-budget">Monitoring Budget</h2>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>CPU request</th>
+<th>Memory request / limit</th>
+<th>Persistent storage</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Prometheus</td>
+<td>250m</td>
+<td>768 MiB / 2 GiB</td>
+<td>12 GiB; 3 days or 8 GB retention</td>
+</tr>
+<tr>
+<td>Grafana</td>
+<td>100m</td>
+<td>128 MiB / 512 MiB</td>
+<td>2 GiB</td>
+</tr>
+<tr>
+<td>Alertmanager</td>
+<td>25m</td>
+<td>64 MiB / 256 MiB</td>
+<td>1 GiB</td>
+</tr>
+<tr>
+<td>Operator</td>
+<td>100m</td>
+<td>128 MiB / 256 MiB</td>
+<td>None</td>
+</tr>
+<tr>
+<td>kube-state-metrics</td>
+<td>50m</td>
+<td>64 MiB / 256 MiB</td>
+<td>None</td>
+</tr>
+<tr>
+<td>Node exporter, per node</td>
+<td>25m</td>
+<td>32 MiB / 128 MiB</td>
+<td>None</td>
+</tr>
+</tbody>
+</table>
+<p>Grafana sidecars and chart jobs add small extra requests. The storage class is
+<code>local-path</code> unless the non-secret Ansible variable <code>monitoring_storage_class</code>
+selects an existing class. This does not install NFS, CSI, external storage, or
+backups for you.</p>
+<p>See <a href="../provisioning/">provisioning</a>, <a href="../operations/">operations</a>, and
+<a href="../observability/">monitoring access</a>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/TheNewThinkTank/homelab" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M202.1 328.7c0 20.9-10.9 55.1-36.7 55.1s-36.7-34.2-36.7-55.1 10.9-55.1 36.7-55.1 36.7 34.2 36.7 55.1M496 278.2c0 31.9-3.2 65.7-17.5 95-37.9 76.6-142.1 74.8-216.7 74.8-75.8 0-186.2 2.7-225.6-74.8-14.6-29-20.2-63.1-20.2-95 0-41.9 13.9-81.5 41.5-113.6-5.2-15.8-7.7-32.4-7.7-48.8 0-21.5 4.9-32.3 14.6-51.8 45.3 0 74.3 9 108.8 36 29-6.9 58.8-10 88.7-10 27 0 54.2 2.9 80.4 9.2 34-26.7 63-35.2 107.8-35.2 9.8 19.5 14.6 30.3 14.6 51.8 0 16.4-2.6 32.7-7.7 48.2 27.5 32.4 39 72.3 39 114.2m-64.3 50.5c0-43.9-26.7-82.6-73.5-82.6-18.9 0-37 3.4-56 6-14.9 2.3-29.8 3.2-45.1 3.2-15.2 0-30.1-.9-45.1-3.2-18.7-2.6-37-6-56-6-46.8 0-73.5 38.7-73.5 82.6 0 87.8 80.4 101.3 150.4 101.3h48.2c70.3 0 150.6-13.4 150.6-101.3m-82.6-55.1c-25.8 0-36.7 34.2-36.7 55.1s10.9 55.1 36.7 55.1 36.7-34.2 36.7-55.1-10.9-55.1-36.7-55.1"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "toc.integrate", "navigation.top", "search.suggest", "search.highlight", "content.tabs.link", "content.code.annotation", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+    
+  </body>
+</html>

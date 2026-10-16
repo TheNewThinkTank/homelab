@@ -6,10 +6,12 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
+        <meta name="description" content="Reproducible Ubuntu Desktop and K3s infrastructure for the Asus PN51">
       
       
       
-        <link rel="prev" href="../observability/">
+      
+        <link rel="prev" href="../provisioning/">
       
       
         <link rel="next" href="architecture-diagrams/">
@@ -23,7 +25,7 @@
     
     
       
-        <title>Index - homelab</title>
+        <title>Hardware - homelab</title>
       
     
     
@@ -74,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#asus-pn51-home-server-configuration" class="md-skip">
+        <a href="#asus-pn51" class="md-skip">
           Skip to content
         </a>
       
@@ -108,7 +110,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Index
+              Hardware
             
           </span>
         </div>
@@ -189,6 +191,18 @@
       
     
     
+      <div class="md-header__source">
+        <a href="https://github.com/TheNewThinkTank/homelab" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    TheNewThinkTank/homelab
+  </div>
+</a>
+      </div>
+    
   </nav>
   
 </header>
@@ -215,7 +229,7 @@
   
     
   
-  homelab
+  Overview
 
       </a>
     </li>
@@ -228,32 +242,13 @@
   
   
     <li class="md-tabs__item">
-      <a href="../gitops/" class="md-tabs__link">
+      <a href="../provisioning/" class="md-tabs__link">
         
   
   
     
   
-  GitOps
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
-  
-    <li class="md-tabs__item">
-      <a href="../observability/" class="md-tabs__link">
-        
-  
-  
-    
-  
-  Observability
+  Provisioning
 
       </a>
     </li>
@@ -274,11 +269,126 @@
           
   
   
-  PN51
+  Architecture
 
         </a>
       </li>
     
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../operations/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Operations
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../observability/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Monitoring
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../security/" class="md-tabs__link">
+          
+  
+  
+  Security
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../reference/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Reference
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../testing/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Testing
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../gitops/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Optional GitOps
+
+      </a>
+    </li>
   
 
       
@@ -315,6 +425,18 @@
     homelab
   </label>
   
+    <div class="md-nav__source">
+      <a href="https://github.com/TheNewThinkTank/homelab" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    TheNewThinkTank/homelab
+  </div>
+</a>
+    </div>
+  
   <ul class="md-nav__list" data-md-scrollfix>
     
       
@@ -331,7 +453,7 @@
   <span class="md-ellipsis">
     
   
-    homelab
+    Overview
   
 
     
@@ -351,41 +473,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../gitops/" class="md-nav__link">
+      <a href="../provisioning/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    GitOps
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../observability/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Observability
+    Provisioning
   
 
     
@@ -423,17 +518,17 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
             
   
   
   <span class="md-ellipsis">
     
   
-    PN51
+    Architecture
   
 
     
@@ -444,12 +539,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
   
-    PN51
+    Architecture
   
 
           </label>
@@ -468,6 +563,8 @@
       <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
       
       
+        
+      
       
         <label class="md-nav__link md-nav__link--active" for="__toc">
           
@@ -476,7 +573,7 @@
   <span class="md-ellipsis">
     
   
-    Index
+    Hardware
   
 
     
@@ -494,7 +591,7 @@
   <span class="md-ellipsis">
     
   
-    Index
+    Hardware
   
 
     
@@ -510,6 +607,8 @@
   
   
   
+    
+  
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
@@ -518,41 +617,13 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#asus-pn51-home-server-configuration" class="md-nav__link">
+  <a href="#resource-budget" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Asus PN51 Home Server Configuration
+        Resource Budget
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Asus PN51 Home Server Configuration">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#networking" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Networking:
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#provisioning" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Provisioning
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -579,7 +650,148 @@
   <span class="md-ellipsis">
     
   
-    Architecture Diagrams
+    Decisions and Diagrams
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monitoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Security
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Secrets and Network Boundaries
   
 
     
@@ -599,61 +811,6 @@
   
   
   
-    
-    
-    
-    
-      
-      
-        
-          
-          
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
-        
-          
-          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Hardening
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4_3">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Hardening
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
     <li class="md-nav__item">
       <a href="hardening/basic-hardening/" class="md-nav__link">
         
@@ -662,7 +819,7 @@
   <span class="md-ellipsis">
     
   
-    Basic Linux Hardening Script for Ubuntu
+    Guest Baseline
   
 
     
@@ -690,7 +847,7 @@
   <span class="md-ellipsis">
     
   
-    Linux Hardening for Asus PN51 Mini PC
+    Threat Model
   
 
     
@@ -710,11 +867,84 @@
     </li>
   
 
-              
-            
-          </ul>
-        </nav>
+    
       
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gitops/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Optional GitOps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -735,57 +965,107 @@
                   
 
 
-
-  <h1>Index</h1>
-
-<h2 id="asus-pn51-home-server-configuration">Asus PN51 Home Server Configuration</h2>
-<p><img alt="" src="../img/PN51.png" /></p>
-<p>Asus PN51
-* AMD Ryzen™ 7 5700U Processor 1.8GHz (12M Cache, up to 4.3GHz)
-* Integrated - Radeon™ Vega Graphics
-* Gigabit LAN, Realtek® 8111EP
-* 32GB Crucial Ballistix LDDR4 Memory
-* 1TB Samsung 980 NVME PCIE4.0 </p>
-<h3 id="networking">Networking:</h3>
-<ul>
-<li>TODO: setup Firewall: (e.g. Cloudflare tunnels)</li>
-<li>TODO: setup Auth proxy: (e.g. Authelia)</li>
-</ul>
-<h3 id="provisioning">Provisioning</h3>
-<ul>
-<li>Preferred provisioning flow: <a href="../../pn51/ansible/playbook.yml">pn51/ansible/playbook.yml</a></li>
-<li>Manual bootstrap fallback: <a href="../../pn51/ubuntu-node-bootstrap.sh">pn51/ubuntu-node-bootstrap.sh</a></li>
-<li>Security hardening script: <a href="../../pn51/ubuntu_hardening.sh">pn51/ubuntu_hardening.sh</a></li>
-</ul>
-
-
-
-
-
-
-
-
-  <aside class="md-source-file">
-    
-    
-    
-      
   
-  <span class="md-source-file__fact">
-    <span class="md-icon" title="Contributors">
-      
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 4a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4"/></svg>
-      
-    </span>
-    <nav>
-      
-        <a href="mailto:thenewthinktank@users.noreply.github.com">Gustav Rasmussen</a>
-    </nav>
-  </span>
+  
 
-    
-    
-  </aside>
+
+<h1 id="asus-pn51">Asus PN51</h1>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CPU</td>
+<td>AMD Ryzen 7 5700U, 8 cores / 16 threads</td>
+</tr>
+<tr>
+<td>Graphics</td>
+<td>Integrated Radeon Vega; guests use virtual displays, not GPU passthrough</td>
+</tr>
+<tr>
+<td>Network</td>
+<td>Gigabit Ethernet, existing private LAN or VLAN</td>
+</tr>
+<tr>
+<td>Memory</td>
+<td>32 GiB</td>
+</tr>
+<tr>
+<td>Storage</td>
+<td>1 TB Samsung 980 NVMe</td>
+</tr>
+<tr>
+<td>Hypervisor</td>
+<td>Proxmox VE 9 on bare metal</td>
+</tr>
+</tbody>
+</table>
+<h2 id="resource-budget">Resource Budget</h2>
+<table>
+<thead>
+<tr>
+<th>Guest</th>
+<th>Role</th>
+<th>vCPU</th>
+<th>RAM</th>
+<th>Disk</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pn51-server-1</code></td>
+<td>K3s control plane and embedded etcd</td>
+<td>2</td>
+<td>6 GiB</td>
+<td>80 GiB</td>
+</tr>
+<tr>
+<td><code>pn51-worker-1</code></td>
+<td>K3s worker</td>
+<td>2</td>
+<td>6 GiB</td>
+<td>80 GiB</td>
+</tr>
+<tr>
+<td><code>pn51-worker-2</code></td>
+<td>K3s worker</td>
+<td>2</td>
+<td>6 GiB</td>
+<td>80 GiB</td>
+</tr>
+<tr>
+<td><code>pn51-worker-3</code></td>
+<td>K3s worker</td>
+<td>2</td>
+<td>6 GiB</td>
+<td>80 GiB</td>
+</tr>
+</tbody>
+</table>
+<p>Ubuntu Desktop runs on every guest, including the control plane. The full
+<code>ubuntu-desktop</code> package installs GNOME and GDM; this is not a server-only
+installation with a misleading name. A cloud image is the reproducible starting
+point rather than an interactive ISO installer.</p>
+<p>The administrator can use Proxmox's virtual console. Console login remains
+password-locked unless a password hash is supplied through the vault. SSH uses
+your existing keys and remains password-disabled even when console login is
+enabled.</p>
+<p>The control plane is tainted to keep ordinary workloads on workers. Desktop and
+monitoring consume real resources: this baseline is appropriate for learning and
+small services, not four simultaneous heavy desktop sessions or large LLMs.</p>
+<p>See <a href="architecture-diagrams/">architecture</a>, <a href="../provisioning/">provisioning</a>,
+and <a href="../reference/">configuration reference</a>.</p>
+
+
+
+
+
+
+
 
 
 

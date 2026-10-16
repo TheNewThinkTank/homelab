@@ -6,13 +6,15 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
+        <meta name="description" content="Reproducible Ubuntu Desktop and K3s infrastructure for the Asus PN51">
       
       
       
-        <link rel="prev" href="../gitops/">
+      
+        <link rel="prev" href="../operations/">
       
       
-        <link rel="next" href="../PN51/">
+        <link rel="next" href="../security/">
       
       
         
@@ -23,7 +25,7 @@
     
     
       
-        <title>Observability - homelab</title>
+        <title>Monitoring - homelab</title>
       
     
     
@@ -74,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#observability" class="md-skip">
+        <a href="#how-to-use-monitoring" class="md-skip">
           Skip to content
         </a>
       
@@ -108,7 +110,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Observability
+              Monitoring
             
           </span>
         </div>
@@ -189,6 +191,18 @@
       
     
     
+      <div class="md-header__source">
+        <a href="https://github.com/TheNewThinkTank/homelab" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    TheNewThinkTank/homelab
+  </div>
+</a>
+      </div>
+    
   </nav>
   
 </header>
@@ -215,7 +229,7 @@
   
     
   
-  homelab
+  Overview
 
       </a>
     </li>
@@ -228,13 +242,52 @@
   
   
     <li class="md-tabs__item">
-      <a href="../gitops/" class="md-tabs__link">
+      <a href="../provisioning/" class="md-tabs__link">
         
   
   
     
   
-  GitOps
+  Provisioning
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../PN51/" class="md-tabs__link">
+          
+  
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../operations/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Operations
 
       </a>
     </li>
@@ -255,7 +308,7 @@
   
     
   
-  Observability
+  Monitoring
 
       </a>
     </li>
@@ -270,15 +323,72 @@
     
     
       <li class="md-tabs__item">
-        <a href="../PN51/" class="md-tabs__link">
+        <a href="../security/" class="md-tabs__link">
           
   
   
-  PN51
+  Security
 
         </a>
       </li>
     
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../reference/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Reference
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../testing/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Testing
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../gitops/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Optional GitOps
+
+      </a>
+    </li>
   
 
       
@@ -315,6 +425,18 @@
     homelab
   </label>
   
+    <div class="md-nav__source">
+      <a href="https://github.com/TheNewThinkTank/homelab" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    TheNewThinkTank/homelab
+  </div>
+</a>
+    </div>
+  
   <ul class="md-nav__list" data-md-scrollfix>
     
       
@@ -331,7 +453,7 @@
   <span class="md-ellipsis">
     
   
-    homelab
+    Overview
   
 
     
@@ -351,14 +473,156 @@
   
   
     <li class="md-nav__item">
-      <a href="../gitops/" class="md-nav__link">
+      <a href="../provisioning/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    GitOps
+    Provisioning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PN51/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../PN51/architecture-diagrams/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Decisions and Diagrams
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
   
 
     
@@ -394,7 +658,7 @@
   <span class="md-ellipsis">
     
   
-    Observability
+    Monitoring
   
 
     
@@ -412,7 +676,7 @@
   <span class="md-ellipsis">
     
   
-    Observability
+    Monitoring
   
 
     
@@ -438,10 +702,65 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#verify-prometheus-and-grafana-installation" class="md-nav__link">
+  <a href="#prerequisites" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Verify Prometheus and Grafana Installation
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-to-open-grafana" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How to Open Grafana
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-to-open-prometheus-or-alertmanager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How to Open Prometheus or Alertmanager
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-to-check-health" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How to Check Health
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-to-change-retention-or-storage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How to Change Retention or Storage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
       
     </span>
   </a>
@@ -476,17 +795,17 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
             
   
   
   <span class="md-ellipsis">
     
   
-    PN51
+    Security
   
 
     
@@ -497,12 +816,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
   
-    PN51
+    Security
   
 
           </label>
@@ -515,14 +834,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../PN51/" class="md-nav__link">
+      <a href="../security/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Index
+    Secrets and Network Boundaries
   
 
     
@@ -535,86 +854,6 @@
   
 
               
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../PN51/architecture-diagrams/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Architecture Diagrams
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
-        
-          
-          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Hardening
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4_3">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Hardening
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
             
               
                 
@@ -630,7 +869,7 @@
   <span class="md-ellipsis">
     
   
-    Basic Linux Hardening Script for Ubuntu
+    Guest Baseline
   
 
     
@@ -658,7 +897,7 @@
   <span class="md-ellipsis">
     
   
-    Linux Hardening for Asus PN51 Mini PC
+    Threat Model
   
 
     
@@ -678,11 +917,84 @@
     </li>
   
 
-              
-            
-          </ul>
-        </nav>
+    
       
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gitops/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Optional GitOps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -703,47 +1015,114 @@
                   
 
 
-
-<h1 id="observability">Observability</h1>
-<h2 id="verify-prometheus-and-grafana-installation">Verify Prometheus and Grafana Installation</h2>
-<p>Check pods in monitoring namespace to confirm that Prometheus and Grafana are running:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>k<span class="w"> </span>get<span class="w"> </span>po<span class="w"> </span>-n<span class="w"> </span>monitoring
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># Check services to get the NodePort for accessing Prometheus and Grafana</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>k<span class="w"> </span>get<span class="w"> </span>svc<span class="w"> </span>-n<span class="w"> </span>monitoring
-</code></pre></div>
-<p>Use the NodePort to access Prometheus or Grafana in browser, e.g.:</p>
-<p><strong>Prometheus</strong>: <code>http://&lt;pn51-ip&gt;:&lt;prometheus-nodeport&gt;</code>
-<strong>Grafana</strong>: <code>http://&lt;pn51-ip&gt;:&lt;grafana-nodeport&gt;</code></p>
-
-
-
-
-
-
-
-
-  <aside class="md-source-file">
-    
-    
-    
-      
   
-  <span class="md-source-file__fact">
-    <span class="md-icon" title="Contributors">
-      
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 4a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4"/></svg>
-      
-    </span>
-    <nav>
-      
-        <a href="mailto:thenewthinktank@users.noreply.github.com">Gustav Rasmussen</a>
-    </nav>
-  </span>
+  
 
-    
-    
-  </aside>
+
+<h1 id="how-to-use-monitoring">How to Use Monitoring</h1>
+<p>The Ansible monitoring role installs a SHA-256-pinned <code>kube-prometheus-stack</code>
+archive. It includes Prometheus, Grafana, Alertmanager, kube-state-metrics,
+node-exporter, dashboards, rules, and Prometheus Operator CRDs.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<p>Complete <a href="../provisioning/">provisioning</a>. Use the private administrator kubeconfig
+on a trusted controller. This is not a public dashboard installation.</p>
+<h2 id="how-to-open-grafana">How to Open Grafana</h2>
+<p>In a dedicated terminal:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kubectl<span class="w"> </span>--kubeconfig<span class="w"> </span>.local/kubeconfig<span class="w"> </span>-n<span class="w"> </span>monitoring<span class="w"> </span>port-forward<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span>--address<span class="w"> </span><span class="m">127</span>.0.0.1<span class="w"> </span>service/monitoring-grafana<span class="w"> </span><span class="m">3000</span>:80
+</code></pre></div>
+<p>Open <a href="http://127.0.0.1:3000">http://127.0.0.1:3000</a>. The default username is <code>admin</code>; the generated
+password is in the encrypted vault. Retrieve it through your trusted local
+vault workflow, not a public terminal transcript or chat. Do not bind forwarding
+to <code>0.0.0.0</code>.</p>
+<p>Dashboards supplied by the chart are available immediately. Grafana's data and
+customizations persist on its 2 GiB PVC. Its admin password is initialized in the
+database; changing only the bootstrap Secret does not rotate an existing account.</p>
+<h2 id="how-to-open-prometheus-or-alertmanager">How to Open Prometheus or Alertmanager</h2>
+<p>Use separate terminals as needed:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>kubectl<span class="w"> </span>--kubeconfig<span class="w"> </span>.local/kubeconfig<span class="w"> </span>-n<span class="w"> </span>monitoring<span class="w"> </span>port-forward<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span>--address<span class="w"> </span><span class="m">127</span>.0.0.1<span class="w"> </span>service/monitoring-prometheus<span class="w"> </span><span class="m">9090</span>:9090
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kubectl<span class="w"> </span>--kubeconfig<span class="w"> </span>.local/kubeconfig<span class="w"> </span>-n<span class="w"> </span>monitoring<span class="w"> </span>port-forward<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span>--address<span class="w"> </span><span class="m">127</span>.0.0.1<span class="w"> </span>service/monitoring-alertmanager<span class="w"> </span><span class="m">9093</span>:9093
+</code></pre></div>
+<p>Open <a href="http://127.0.0.1:9090">http://127.0.0.1:9090</a> or <a href="http://127.0.0.1:9093">http://127.0.0.1:9093</a>. These services have no
+independent public authentication boundary and must stay private. Stop each
+forward with Ctrl-C when finished.</p>
+<p>Prometheus retains up to three days or about 8 GB in a 12 GiB PVC. Its WAL and
+compaction need space beyond the retention-size setting. Alertmanager uses 1 GiB
+for silences and notification state. No alert email/webhook destination is
+invented; configure a receiver and its credentials deliberately when required.</p>
+<h2 id="how-to-check-health">How to Check Health</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>make<span class="w"> </span>verify
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>kubectl<span class="w"> </span>--kubeconfig<span class="w"> </span>.local/kubeconfig<span class="w"> </span>-n<span class="w"> </span>monitoring<span class="w"> </span>get<span class="w"> </span>pods,pvc,services
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>kubectl<span class="w"> </span>--kubeconfig<span class="w"> </span>.local/kubeconfig<span class="w"> </span>-n<span class="w"> </span>monitoring<span class="w"> </span>get<span class="w"> </span>prometheus,alertmanager
+</code></pre></div>
+<p>Expect private ClusterIP services, three Bound persistent claims, ready operator
+and exporters, and ready Prometheus/Alertmanager instances. Inspect Prometheus
+<strong>Status &gt; Targets</strong> when a scrape fails. The workflow disables etcd,
+controller-manager, scheduler, and kube-proxy monitors/rules that do not map to
+this default K3s installation; it does not open their bind addresses just to make
+dashboards green.</p>
+<p>Node-exporter inspects the host but uses pod networking rather than a host
+metrics listener. The monitoring namespace explicitly permits privileged pod
+security for host inspection; do not admit unrelated or untrusted workloads.</p>
+<h2 id="how-to-change-retention-or-storage">How to Change Retention or Storage</h2>
+<p>Edit the non-secret monitoring values and run <code>make chart-check</code>, then
+<code>make configure</code> and <code>make verify</code>. Review the <a href="../reference/#monitoring-budget">resource reference</a>
+before increasing requests or retention on this 32 GiB host.</p>
+<p>To use external storage, install and validate that storage class separately and
+set the Ansible variable <code>monitoring_storage_class</code>. Changing the variable does
+not migrate an existing PVC. Back up and restore data through a planned storage
+migration; PVC storage class and many volume fields are immutable.</p>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Prometheus/Alertmanager Pending</td>
+<td>PVC binding, worker scheduling, local-path helper pod events, memory and disk</td>
+</tr>
+<tr>
+<td>Grafana unavailable after restart</td>
+<td>Its Deployment, bound PVC, node affinity, database health, and permissions</td>
+</tr>
+<tr>
+<td>Targets down</td>
+<td>Endpoint discovery, kubelet TLS/authentication, CNI traffic, and VM firewall state</td>
+</tr>
+<tr>
+<td>Chart checksum mismatch</td>
+<td>Stop; verify the reviewed version/hash pair and inspect the cached archive</td>
+</tr>
+<tr>
+<td>CRD conflict on upgrade</td>
+<td>Review upstream migrations and current field ownership; do not force conflicts blindly</td>
+</tr>
+<tr>
+<td>Data disappeared after VM replacement</td>
+<td>Local-path data is on the old VM disk; restore from off-host backup</td>
+</tr>
+<tr>
+<td>Old Grafana password still works</td>
+<td>Existing database password is separate from the bootstrap Secret</td>
+</tr>
+</tbody>
+</table>
+<p>See <a href="../operations/">backup and recovery</a>, <a href="../security/">security</a>, and
+<a href="../testing/">live acceptance</a>.</p>
+
+
+
+
+
+
+
 
 
 

@@ -6,11 +6,15 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
+        <meta name="description" content="Reproducible Ubuntu Desktop and K3s infrastructure for the Asus PN51">
+      
       
       
       
         <link rel="prev" href="../basic-hardening/">
       
+      
+        <link rel="next" href="../../../reference/">
       
       
         
@@ -21,7 +25,7 @@
     
     
       
-        <title>Linux Hardening for Asus PN51 Mini PC - homelab</title>
+        <title>Threat Model - homelab</title>
       
     
     
@@ -72,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#linux-hardening-for-asus-pn51-mini-pc" class="md-skip">
+        <a href="#threat-model" class="md-skip">
           Skip to content
         </a>
       
@@ -106,7 +110,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Linux Hardening for Asus PN51 Mini PC
+              Threat Model
             
           </span>
         </div>
@@ -187,6 +191,18 @@
       
     
     
+      <div class="md-header__source">
+        <a href="https://github.com/TheNewThinkTank/homelab" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    TheNewThinkTank/homelab
+  </div>
+</a>
+      </div>
+    
   </nav>
   
 </header>
@@ -213,7 +229,7 @@
   
     
   
-  homelab
+  Overview
 
       </a>
     </li>
@@ -226,13 +242,52 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../../gitops/" class="md-tabs__link">
+      <a href="../../../provisioning/" class="md-tabs__link">
         
   
   
     
   
-  GitOps
+  Provisioning
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../" class="md-tabs__link">
+          
+  
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../operations/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Operations
 
       </a>
     </li>
@@ -251,7 +306,7 @@
   
     
   
-  Observability
+  Monitoring
 
       </a>
     </li>
@@ -268,15 +323,72 @@
     
     
       <li class="md-tabs__item md-tabs__item--active">
-        <a href="../../" class="md-tabs__link">
+        <a href="../../../security/" class="md-tabs__link">
           
   
   
-  PN51
+  Security
 
         </a>
       </li>
     
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../reference/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Reference
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../testing/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Testing
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../gitops/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Optional GitOps
+
+      </a>
+    </li>
   
 
       
@@ -313,6 +425,18 @@
     homelab
   </label>
   
+    <div class="md-nav__source">
+      <a href="https://github.com/TheNewThinkTank/homelab" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    TheNewThinkTank/homelab
+  </div>
+</a>
+    </div>
+  
   <ul class="md-nav__list" data-md-scrollfix>
     
       
@@ -329,7 +453,7 @@
   <span class="md-ellipsis">
     
   
-    homelab
+    Overview
   
 
     
@@ -349,14 +473,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../gitops/" class="md-nav__link">
+      <a href="../../../provisioning/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    GitOps
+    Provisioning
   
 
     
@@ -375,63 +499,31 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="../../../observability/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Observability
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-    
-  
-  
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
             
   
   
   <span class="md-ellipsis">
     
   
-    PN51
+    Architecture
   
 
     
@@ -442,12 +534,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
   
-    PN51
+    Architecture
   
 
           </label>
@@ -467,7 +559,7 @@
   <span class="md-ellipsis">
     
   
-    Index
+    Hardware
   
 
     
@@ -495,7 +587,153 @@
   <span class="md-ellipsis">
     
   
-    Architecture Diagrams
+    Decisions and Diagrams
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../operations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../observability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monitoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Security
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Secrets and Network Boundaries
   
 
     
@@ -513,63 +751,6 @@
                 
   
   
-    
-  
-  
-  
-    
-    
-    
-    
-      
-      
-        
-          
-          
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" checked>
-        
-          
-          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Hardening
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_4_3">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Hardening
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
   
   
     <li class="md-nav__item">
@@ -580,7 +761,7 @@
   <span class="md-ellipsis">
     
   
-    Basic Linux Hardening Script for Ubuntu
+    Guest Baseline
   
 
     
@@ -617,7 +798,7 @@
   <span class="md-ellipsis">
     
   
-    Linux Hardening for Asus PN51 Mini PC
+    Threat Model
   
 
     
@@ -635,7 +816,7 @@
   <span class="md-ellipsis">
     
   
-    Linux Hardening for Asus PN51 Mini PC
+    Threat Model
   
 
     
@@ -661,52 +842,24 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#recommended-approach" class="md-nav__link">
+  <a href="#what-the-baseline-addresses" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Recommended Approach
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Recommended Approach">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-starting-with-a-baseline-hardening-tool" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. Starting with a Baseline Hardening Tool
+        What the Baseline Addresses
       
     </span>
   </a>
   
 </li>
-        
-          <li class="md-nav__item">
-  <a href="#2-key-areas-to-focus-on" class="md-nav__link">
+      
+        <li class="md-nav__item">
+  <a href="#what-remains-an-operator-responsibility" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Key Areas to Focus On
+        What Remains an Operator Responsibility
       
     </span>
   </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#3-k8s-specific-security" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. K8S-Specific Security
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -725,11 +878,84 @@
     </li>
   
 
-              
-            
-          </ul>
-        </nav>
+    
       
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../gitops/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Optional GitOps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -750,67 +976,72 @@
                   
 
 
-
-<h1 id="linux-hardening-for-asus-pn51-mini-pc">Linux Hardening for Asus PN51 Mini PC</h1>
-<p>Based on my setup (Asus PN51 running Ubuntu for hobby projects including self-hosted K8S), implementing some security hardening measures is beneficial, since I will be hosting web applications that may be accessible from the internet.</p>
-<p>My activities listed below increase my attack surface, making security hardening important.
-- Self-hosting web applications
-- Running a Kubernetes cluster (K3S)
-- Using ArgoCD for deployments
-- Maintaining public GitHub repositories</p>
-<h2 id="recommended-approach">Recommended Approach</h2>
-<p>Rather than using a single "do-it-all" hardening script (which might be too aggressive or not tailored to my specific needs), I choose a more measured approach:</p>
-<h3 id="1-starting-with-a-baseline-hardening-tool">1. Starting with a Baseline Hardening Tool</h3>
-<p>I currently consider using one of these established tools:</p>
-<ul>
-<li><strong>Lynis</strong> - An open-source security auditing tool that can both assess my system and provide hardening recommendations</li>
-<li><strong>OpenSCAP</strong> - Security compliance and hardening framework</li>
-<li><strong>Ubuntu's built-in security features</strong> - AppArmor, UFW (Uncomplicated Firewall), etc.</li>
-</ul>
-<h3 id="2-key-areas-to-focus-on">2. Key Areas to Focus On</h3>
-<p>For my specific setup (home K8S cluster with web apps), I prioritize:</p>
-<ul>
-<li><strong>Network security</strong>: Configure UFW to limit exposed ports</li>
-<li><strong>SSH hardening</strong>: Key-based authentication, disable root login</li>
-<li><strong>Container security</strong>: Implement pod security policies in K8S</li>
-<li><strong>Regular updates</strong>: Keeping my system and applications updated</li>
-<li><strong>Secure CI/CD practices</strong>: For my ArgoCD workflows</li>
-<li><strong>Least privilege principle</strong>: For all services and applications</li>
-</ul>
-<h3 id="3-k8s-specific-security">3. K8S-Specific Security</h3>
-<p>Since I am running K3S, I also plan to:
-- Implement network policies
-- Use RBAC properly
-- Consider tools like Falco for runtime security monitoring</p>
-
-
-
-
-
-
-
-
-  <aside class="md-source-file">
-    
-    
-    
-      
   
-  <span class="md-source-file__fact">
-    <span class="md-icon" title="Contributors">
-      
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 4a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4"/></svg>
-      
-    </span>
-    <nav>
-      
-        <a href="mailto:thenewthinktank@users.noreply.github.com">Gustav Rasmussen</a>
-    </nav>
-  </span>
+  
 
-    
-    
-  </aside>
+
+<h1 id="threat-model">Threat Model</h1>
+<p>This lab assumes a trusted administrator workstation, a private trusted node
+network, a patched Proxmox host, and Ubuntu/GitHub/Helm artifacts obtained through
+verified TLS and pinned checksums where supported.</p>
+<h2 id="what-the-baseline-addresses">What the Baseline Addresses</h2>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Control</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Public Git credential exposure</td>
+<td>Ignored local artifacts, Vault, no private-key generation in Terraform, history scans</td>
+</tr>
+<tr>
+<td>Accidental network exposure</td>
+<td>Default-drop VM ingress, explicit administrator CIDRs, no public monitoring services</td>
+</tr>
+<tr>
+<td>Man-in-the-middle administration</td>
+<td>Proxmox CA trust, verified SSH host keys, Kubernetes CA validation, secure worker join token</td>
+</tr>
+<tr>
+<td>Configuration drift</td>
+<td>Declarative roles, handlers, mock/template tests, full live second-run acceptance</td>
+</tr>
+<tr>
+<td>Unintended destructive replacement</td>
+<td>Exact worker selection, PV guard, full-plan scope validation, typed confirmation</td>
+</tr>
+<tr>
+<td>Accidental cluster identity loss</td>
+<td>Stable inventory, stale-node detection, token mismatch guard, documented restore requirements</td>
+</tr>
+</tbody>
+</table>
+<h2 id="what-remains-an-operator-responsibility">What Remains an Operator Responsibility</h2>
+<p>One machine cannot provide physical high availability. Its NVMe disk and local
+volumes are not replicated. Scheduled local etcd snapshots are not off-host
+backups. A compromised administrator key, Proxmox host, or cluster-admin
+kubeconfig can control the lab.</p>
+<p>Desktop increases the guest package and GUI attack surface. Node-exporter needs
+host inspection; its namespace permits privileged pod security. VXLAN traffic is
+private-network traffic, not an encrypted overlay. The cluster does not claim
+default-deny pod-to-pod policy or application-level authentication.</p>
+<p>Do not publish workloads until you have designed namespace RBAC, appropriate
+NetworkPolicies, ingress TLS/authentication, dependency updates, and application
+backup/restore. PodSecurityPolicy is removed from modern Kubernetes; use Pod
+Security Admission and current policy tooling instead.</p>
+<p>See the <a href="../basic-hardening/">enforced guest baseline</a>,
+<a href="../../../security/">secret and network controls</a>, and
+<a href="../../../operations/">backup/restore procedures</a>.</p>
+
+
+
+
+
+
+
 
 
 
