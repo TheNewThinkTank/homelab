@@ -1,0 +1,45 @@
+---
+- name: Check plugin prerequisites without network or filesystem changes
+  ansible.builtin.command:
+    argv: [bash, "{{ dotfiles_checkout }}/scripts/plugins.sh", "{{ dotfiles_checkout }}/plugins.lock.json", check]
+  register: dotfiles_plugin_check
+  changed_when: false
+  failed_when: dotfiles_plugin_check.rc not in [0, 3]
+
+- name: Install missing pinned plugins as ubuntu
+  ansible.builtin.command:
+    argv: [bash, "{{ dotfiles_checkout }}/scripts/plugins.sh", "{{ dotfiles_checkout }}/plugins.lock.json", install]
+  when: dotfiles_plugin_check.rc == 3
+  changed_when: true
+
+- name: Check managed configuration content without creating backups
+  ansible.builtin.command:
+    argv:
+      - bash
+      - "{{ dotfiles_checkout }}/bootstrap.sh"
+      - --platform
+      - ubuntu
+      - --profile
+      - "{{ dotfiles_profile }}"
+      - --package-set
+      - homelab
+      - --check
+  register: dotfiles_configuration_check
+  changed_when: false
+  failed_when: dotfiles_configuration_check.rc not in [0, 3]
+
+- name: Deploy only changed managed configuration with the dotfiles backup mechanism
+  ansible.builtin.command:
+    argv:
+      - bash
+      - "{{ dotfiles_checkout }}/bootstrap.sh"
+      - --platform
+      - ubuntu
+      - --profile
+      - "{{ dotfiles_profile }}"
+      - --package-set
+      - homelab
+      - --force
+      - --skip-install
+  when: dotfiles_configuration_check.rc == 3
+  changed_when: true

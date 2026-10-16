@@ -1,0 +1,100 @@
+---
+- name: Require an explicit immutable dotfiles source
+  ansible.builtin.assert:
+    that:
+      - dotfiles_revision is match('^[a-f0-9]{40}$')
+      - dotfiles_repository is match('^https://github.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+\.git$')
+      - dotfiles_profile in ['personal', 'work']
+      - dotfiles_home == '/home/ubuntu'
+    fail_msg: Publish the updated dotfiles repository and select its full commit SHA in your private configuration.
+
+- name: Install Git for the pinned public checkout
+  ansible.builtin.apt:
+    name: git
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Reconcile the ubuntu user environment from the dotfiles repository
+  become: true
+  become_user: ubuntu
+  environment:
+    HOME: "{{ dotfiles_home }}"
+    XDG_CONFIG_HOME: "{{ dotfiles_home }}/.config"
+    XDG_STATE_HOME: "{{ dotfiles_home }}/.local/state"
+    XDG_DATA_HOME: "{{ dotfiles_home }}/.local/share"
+    DOTFILES_PLATFORM: ubuntu
+    DOTFILES_PROFILE: "{{ dotfiles_profile }}"
+    DOTFILES_PACKAGE_SET: homelab
+    PATH: "{{ dotfiles_home }}/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  block:
+    - name: Create the user-owned dotfiles checkout parent
+      ansible.builtin.file:
+        path: "{{ dotfiles_checkout | dirname }}"
+        state: directory
+        mode: '0755'
+
+    - name: Check out the exact public dotfiles revision without discarding edits
+      ansible.builtin.git:
+        repo: "{{ dotfiles_repository }}"
+        dest: "{{ dotfiles_checkout }}"
+        version: "{{ dotfiles_revision }}"
+        update: true
+        force: false
+        recursive: false
+      register: dotfiles_source
+
+    - name: Check the published bootstrap interface
+      ansible.builtin.command:
+        argv: [bash, "{{ dotfiles_checkout }}/bootstrap.sh", --help]
+      register: dotfiles_interface
+      changed_when: false
+
+    - name: Reject an older dotfiles revision without the automation interface
+      ansible.builtin.assert:
+        that:
+          - dotfiles_source.after == dotfiles_revision
+          - "'--check' in dotfiles_interface.stdout"
+          - "'--package-set' in dotfiles_interface.stdout"
+        fail_msg: The pinned commit must include the homelab package set and read-only configuration checks.
+
+    - name: Read the package list owned by the pinned dotfiles revision
+      ansible.builtin.slurp:
+        src: "{{ dotfiles_checkout }}/platforms/ubuntu/apt-homelab-packages.txt"
+      register: dotfiles_package_source
+
+    - name: Read the tool pins owned by the dotfiles revision
+      ansible.builtin.slurp:
+        src: "{{ dotfiles_checkout }}/platforms/ubuntu/tools.lock.json"
+      register: dotfiles_tool_source
+
+    - name: Parse public package and tool metadata
+      ansible.builtin.set_fact:
+        dotfiles_packages: "{{ (dotfiles_package_source.content | b64decode).splitlines() | reject('equalto', '') | list }}"
+        dotfiles_tools: "{{ dotfiles_tool_source.content | b64decode | from_json }}"
+
+    - name: Validate the selected package names and Kubernetes client release
+      ansible.builtin.assert:
+        that:
+          - dotfiles_packages | length > 0
+          - dotfiles_packages | select('match', '^[a-z0-9][a-z0-9+.-]*$') | list | length == dotfiles_packages | length
+          - dotfiles_tools.assets.kubectl.version is match('^1\.[0-9]+\.[0-9]+$')
+          - >-
+            (((dotfiles_tools.assets.kubectl.version.split('.')[1] | int) -
+            (k3s_version.split('.')[1] | int)) | abs) <= 1
+        fail_msg: Use valid package names and an official kubectl within one Kubernetes minor of K3s.
+
+    - name: Reconcile only the selected node packages with truthful change reporting
+      become: true
+      become_user: root
+      ansible.builtin.apt:
+        name: "{{ dotfiles_packages }}"
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Reconcile the checksum-pinned Kubernetes client
+      ansible.builtin.import_tasks: kubectl.yml
+
+    - name: Reconcile plugins and managed user configuration
+      ansible.builtin.import_tasks: configure.yml

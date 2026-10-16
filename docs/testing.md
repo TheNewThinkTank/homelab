@@ -1,0 +1,111 @@
+# Testing and Acceptance
+
+There are two different claims to verify: the source describes a coherent lab,
+and that lab actually converges on your PN51. CI proves the first. Only live
+acceptance and recovery exercises can prove the second.
+
+## Credential-Free Gates
+
+```bash
+make setup
+make check
+```
+
+The chart download and dependency installation require internet access, but no
+Proxmox, SSH, vault, or Kubernetes credentials. Tests never call Terraform apply
+against the host.
+
+| Gate | Evidence |
+| --- | --- |
+| Terraform fmt/validate | Configuration matches the pinned real provider schema |
+| Terraform mocked plans | Exactly four VMs; one server/three workers; default RAM budget; firewalls; deterministic inventory |
+| Negative Terraform cases | World-open administration, small Desktop RAM, gateway/IP collisions, overlapping networks, private-key input rejected |
+| Ansible production lint | Fully qualified modules, schema/syntax, task conventions, YAML formatting |
+| Real Ansible templates | All four host configs rendered; server/agent flag separation; token-file use; unchanged second render |
+| Python regressions | Private modes, symlinks, vault encryption/failure, inventory precedence, replacement scope and PV guards, idempotence evidence |
+| Dotfiles role contracts | Mutable revisions rejected before package installation; public source and ubuntu ownership; local configuration fixture changes only when necessary |
+| Real pinned chart | Exact archive checksum; strict Helm lint; render against pinned Kubernetes version; private services; persistent storage; existing Grafana Secret |
+| CRD regression | All ten real CRDs parse safely; YAML `=` scalar handled without Python-object construction |
+| MkDocs strict | Navigation and local documentation links build without warnings |
+| Secret scanning | Redacted Git-history scan in CI; tracked and nonignored working files scanned before publication |
+
+The GitHub workflow pins its actions to commit IDs, uses a frozen Python lockfile,
+and grants infrastructure validation read-only repository access. It has no
+homelab credentials or self-hosted runner. Documentation publishing has its own
+separate write-capable workflow.
+
+## How to Run Live Acceptance
+
+After [initial configuration](provisioning.md):
+
+```bash
+make verify
+```
+
+This requires the private inventory/kubeconfig and a reachable cluster. It checks
+all declared node names, exact K3s versions and Ready conditions, monitoring
+Deployment/StatefulSet/DaemonSet replica health, three Bound persistent claims,
+Grafana's database health, nonempty healthy Prometheus targets, and `helm test`.
+Helm test creates a temporary chart test pod; it does not rebuild VMs.
+
+Also inspect the Desktop console on all guests, confirm the Proxmox datacenter
+firewall is enforcing the declared policy, and verify that a non-admin machine
+cannot reach guest SSH or the server API. An internal cluster health check cannot
+prove an external firewall is enabled.
+
+## How to Prove Full Convergence
+
+```bash
+make idempotence
+```
+
+The first run establishes desired state. The second full run writes a private
+JSON callback report and must show **zero changes, failures, unreachable hosts,
+rescued tasks, and ignored failures** on the exact four expected hosts. An empty
+report, missing host, or partial `--limit` run cannot pass the evidence checker.
+
+The report stays under ignored `.local/`; do not upload it as a public artifact.
+When dotfiles is enabled, run `make idempotence CONFIG_FILE=.local/config.yml`.
+The role checks package state, missing plugins, and managed configuration
+separately; it does not hide a full bootstrap behind an always-unchanged command.
+If a task changes again, inspect that exact task rather than hiding it with a
+blanket `changed_when: false`. Pure observation commands are intentionally
+unchanged; actual package, Secret, file, service, and Helm changes are not hidden.
+
+## How to Exercise Recovery
+
+On an isolated test copy, prove that a stateless worker can be replaced and
+rejoin under its original name, that a data-bearing worker is refused, and that
+etcd plus application data can be restored from off-host backups. Run live
+acceptance and idempotence after each exercise. Never test a production restore
+against conflicting VM IDs or addresses.
+
+## Verification Limits
+
+Mocked plans do not prove Proxmox ACLs, imported-image boot behavior, guest-agent
+startup, Ubuntu Desktop installation, CNI traffic, kernel compatibility, or
+physical capacity. Chart rendering does not prove successful operator scheduling
+or database migration. Local template convergence is not a substitute for the
+full live second-run check.
+
+The repository deliberately does not claim those live results until you run the
+gates on your host. Known controller collection deprecation warnings are not
+suppressed globally; review them when updating pinned dependencies.
+
+The sibling dotfiles project has independent offline and real-plugin tests for
+MacBook personal/work profiles. Its Ubuntu 26.04 CI covers both the workstation
+and lightweight homelab package sets. With Docker running, use
+`DOTFILES_PACKAGE_SET=homelab make ubuntu` there to test the lightweight native
+installer. A passing local Ansible fixture does not prove the full VM deployment
+or replace those native Linux checks.
+
+## Troubleshooting
+
+Run the failing slice directly with `make lint`, `make chart-check`,
+`make test-templates`, or `uv run --frozen python -m pytest`. Use
+`terraform -chdir=pn51/terraform test` for mocked plans. For a live failure,
+inspect node/pod events and the exact failing Ansible task without enabling
+secret-bearing debug output.
+
+See [operations](operations.md), [reference](reference.md), and
+[monitoring troubleshooting](observability.md).

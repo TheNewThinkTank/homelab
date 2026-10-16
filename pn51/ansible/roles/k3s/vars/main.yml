@@ -1,0 +1,3 @@
+---
+k3s_service_name: "{{ 'k3s' if k3s_role == 'server' else 'k3s-agent' }}"
+k3s_server_host: "{{ groups['k3s_server'][0] }}"

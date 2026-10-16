@@ -1,4 +1,4 @@
-name: docs
+name: Publish Documentation
 
 on:
   push:
@@ -9,17 +9,24 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: documentation-publish
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
-          python-version: 3.x
-      - uses: actions/cache@v4
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9
         with:
-          key: ${{ github.ref }}
-          path: .cache
-      - run: pip install -r mkdocs-requirements.txt
-      - run: mkdocs gh-deploy --force
+          version: 0.13.1
+          python-version: '3.13'
+          enable-cache: true
+      - name: Install locked documentation dependencies
+        run: uv sync --frozen --no-dev
+      - name: Validate and publish
+        run: uv run --frozen --no-dev mkdocs gh-deploy --strict --force

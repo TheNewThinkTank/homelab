@@ -1,0 +1,154 @@
+---
+- name: Inspect whether this guest already has a K3s service
+  ansible.builtin.stat:
+    path: "/etc/systemd/system/{{ k3s_service_name }}.service"
+  register: k3s_previous_service
+
+- name: Check for a stale Kubernetes identity before joining a fresh worker
+  ansible.builtin.command:
+    argv: [/usr/local/bin/k3s, kubectl, get, node, "{{ inventory_hostname }}", --ignore-not-found, -o, name]
+  delegate_to: "{{ k3s_server_host }}"
+  register: k3s_existing_node
+  changed_when: false
+  when: k3s_role == 'agent' and not k3s_previous_service.stat.exists
+
+- name: Require the guarded replacement procedure for an existing worker name
+  ansible.builtin.assert:
+    that:
+      - k3s_existing_node.stdout | default('') == ''
+    fail_msg: A Node already owns this name. Use the documented replace-worker procedure; do not erase its identity blindly.
+  when: k3s_role == 'agent' and not k3s_previous_service.stat.exists
+
+- name: Read the CA-pinned join token from the running control plane
+  ansible.builtin.slurp:
+    src: /var/lib/rancher/k3s/server/node-token
+  delegate_to: "{{ k3s_server_host }}"
+  register: k3s_join_token
+  when: k3s_role == 'agent'
+  no_log: true
+
+- name: Select the server secret or the CA-pinned worker join token
+  ansible.builtin.set_fact:
+    k3s_expected_token: "{{ k3s_token if k3s_role == 'server' else (k3s_join_token.content | b64decode | trim) }}"
+    cacheable: false
+  no_log: true
+
+- name: Create private K3s configuration directory
+  ansible.builtin.file:
+    path: /etc/rancher/k3s
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Inspect the existing token file
+  ansible.builtin.stat:
+    path: /etc/rancher/k3s/token
+  register: k3s_previous_token
+
+- name: Read the existing cluster identity without logging it
+  ansible.builtin.slurp:
+    src: /etc/rancher/k3s/token
+  register: k3s_stored_token
+  when: k3s_previous_token.stat.exists
+  no_log: true
+
+- name: Refuse accidental token changes on an existing node
+  ansible.builtin.assert:
+    that:
+      - k3s_stored_token.content | b64decode | trim == k3s_expected_token
+    fail_msg: Restore the original vault or perform the documented K3s token rotation. Never replace an existing cluster token blindly.
+  when: k3s_previous_token.stat.exists
+  no_log: true
+
+- name: Install the pinned and checksummed K3s binary
+  ansible.builtin.get_url:
+    url: "https://github.com/k3s-io/k3s/releases/download/{{ k3s_version }}/k3s"
+    dest: /usr/local/bin/k3s
+    checksum: "{{ k3s_binary_checksum }}"
+    owner: root
+    group: root
+    mode: "0755"
+  register: k3s_binary
+  notify: Restart K3s
+
+- name: Write the root-only token outside service arguments
+  ansible.builtin.copy:
+    dest: /etc/rancher/k3s/token
+    content: "{{ k3s_expected_token }}\n"
+    owner: root
+    group: root
+    mode: "0600"
+  register: k3s_token_file
+  no_log: true
+  diff: false
+  notify: Restart K3s
+
+- name: Reconcile the K3s configuration
+  ansible.builtin.template:
+    src: config.yaml.j2
+    dest: /etc/rancher/k3s/config.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  register: k3s_config
+  notify: Restart K3s
+
+- name: Reconcile the K3s systemd service
+  ansible.builtin.template:
+    src: k3s.service.j2
+    dest: "/etc/systemd/system/{{ k3s_service_name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  register: k3s_unit
+  notify: Restart K3s
+
+- name: Determine whether a running worker requires a rolling restart
+  ansible.builtin.set_fact:
+    k3s_drain_required: >-
+      {{ k3s_role == 'agent' and k3s_previous_service.stat.exists and
+         (k3s_binary.changed or k3s_config.changed or k3s_unit.changed or k3s_token_file.changed) }}
+
+- name: Apply K3s changes with a guarded rolling restart
+  block:
+    - name: Drain a running worker before restarting it
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/k3s
+          - kubectl
+          - drain
+          - "{{ inventory_hostname }}"
+          - --ignore-daemonsets
+          - --delete-emptydir-data
+          - --timeout=300s
+      delegate_to: "{{ k3s_server_host }}"
+      register: k3s_drain
+      when: k3s_drain_required
+      changed_when: true
+
+    - name: Apply notified K3s service changes
+      ansible.builtin.meta: flush_handlers
+
+    - name: Keep the K3s service enabled and running
+      ansible.builtin.systemd_service:
+        name: "{{ k3s_service_name }}"
+        enabled: true
+        state: started
+
+    - name: Wait for this Kubernetes node to become ready
+      ansible.builtin.command:
+        argv: [/usr/local/bin/k3s, kubectl, wait, "node/{{ inventory_hostname }}", --for=condition=Ready, --timeout=300s]
+      delegate_to: "{{ k3s_server_host }}"
+      register: k3s_node_ready
+      retries: 12
+      delay: 5
+      until: k3s_node_ready.rc == 0
+      changed_when: false
+  always:
+    - name: Restore scheduling after a rolling worker update
+      ansible.builtin.command:
+        argv: [/usr/local/bin/k3s, kubectl, uncordon, "{{ inventory_hostname }}"]
+      delegate_to: "{{ k3s_server_host }}"
+      when: k3s_drain_required and k3s_drain is defined and not (k3s_drain.skipped | default(false))
+      changed_when: true

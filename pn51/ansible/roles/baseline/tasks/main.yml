@@ -1,0 +1,177 @@
+---
+- name: Wait for cloud-init SSH access
+  ansible.builtin.wait_for_connection:
+    timeout: 900
+
+- name: Wait for cloud-init to finish before touching package management
+  ansible.builtin.command:
+    argv: [timeout, "900", cloud-init, status, --wait]
+  changed_when: false
+
+- name: Collect guest facts
+  ansible.builtin.setup:
+
+- name: Reject unsupported or accidental bare-metal targets
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == 'Ubuntu'
+      - ansible_facts['distribution_version'] == '26.04'
+      - ansible_facts['architecture'] == 'x86_64'
+      - ansible_facts['virtualization_role'] == 'guest'
+      - ansible_facts['memtotal_mb'] >= 5600
+    fail_msg: This playbook targets the Terraform-managed Ubuntu 26.04 desktop VMs only.
+
+- name: Install the full Ubuntu Desktop and the guest baseline
+  ansible.builtin.apt:
+    name:
+      - ubuntu-desktop
+      - qemu-guest-agent
+      - openssh-server
+      - ca-certificates
+      - curl
+      - python3-apt
+      - unattended-upgrades
+      - apparmor
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+
+- name: Start the guest agent on the Proxmox-provided virtio channel
+  ansible.builtin.systemd_service:
+    name: qemu-guest-agent
+    state: started
+
+- name: Keep key-based SSH available
+  ansible.builtin.systemd_service:
+    name: ssh
+    enabled: true
+    state: started
+
+- name: Install early-precedence SSH hardening
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/00-homelab.conf
+    mode: "0600"
+    validate: /usr/sbin/sshd -t -f %s
+    content: |
+      PermitRootLogin no
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitEmptyPasswords no
+      PubkeyAuthentication yes
+      AuthenticationMethods publickey
+      X11Forwarding no
+      MaxAuthTries 3
+      AllowUsers ubuntu
+  notify: Reload SSH
+
+- name: Enable security updates without surprise cluster reboots
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/52homelab-unattended-upgrades
+    mode: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      Unattended-Upgrade::Automatic-Reboot "false";
+
+- name: Persist Kubernetes kernel modules
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/k3s.conf
+    mode: "0644"
+    content: |
+      overlay
+      br_netfilter
+
+- name: Load Kubernetes kernel modules when absent
+  ansible.builtin.command:
+    argv: [/usr/sbin/modprobe, "{{ item }}"]
+    creates: "/sys/module/{{ item }}"
+  loop:
+    - overlay
+    - br_netfilter
+
+- name: Reconcile Kubernetes-compatible kernel settings
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+    sysctl_set: true
+    reload: true
+    sysctl_file: /etc/sysctl.d/90-homelab-k3s.conf
+  loop: "{{ baseline_sysctls | dict2items }}"
+  vars:
+    baseline_sysctls:
+      net.ipv4.ip_forward: "1"
+      net.bridge.bridge-nf-call-iptables: "1"
+      net.bridge.bridge-nf-call-ip6tables: "1"
+      net.ipv4.conf.all.rp_filter: "0"
+      net.ipv4.conf.default.rp_filter: "0"
+      net.ipv4.conf.all.accept_redirects: "0"
+      net.ipv4.conf.default.accept_redirects: "0"
+      net.ipv4.conf.all.send_redirects: "0"
+      net.ipv4.conf.default.send_redirects: "0"
+      net.ipv4.tcp_syncookies: "1"
+      vm.overcommit_memory: "1"
+      vm.panic_on_oom: "0"
+      kernel.panic: "10"
+      kernel.panic_on_oops: "1"
+      kernel.keys.root_maxkeys: '1000000'
+      kernel.keys.root_maxbytes: '25000000'
+
+- name: Disable active swap for the kubelet
+  ansible.builtin.command:
+    argv: [/usr/sbin/swapoff, --all]
+  when: ansible_facts['swaptotal_mb'] | int > 0
+  changed_when: true
+
+- name: Prevent fstab swap from returning at boot
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: "^(\\s*[^#\\s]+\\s+\\S+\\s+swap\\s+.*)$"
+    replace: "# \\1"
+
+- name: Prevent desktop power management from suspending cluster nodes
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    masked: true
+  loop:
+    - sleep.target
+    - suspend.target
+    - hibernate.target
+    - hybrid-sleep.target
+
+- name: Inspect the default boot target
+  ansible.builtin.command:
+    argv: [systemctl, get-default]
+  register: baseline_boot_target
+  changed_when: false
+
+- name: Boot into the desktop rather than a server-only target
+  ansible.builtin.command:
+    argv: [systemctl, set-default, graphical.target]
+  when: baseline_boot_target.stdout != 'graphical.target'
+  changed_when: true
+
+- name: Start the desktop display manager
+  ansible.builtin.systemd_service:
+    name: gdm3
+    state: started
+
+- name: Validate an optional vaulted desktop console password hash
+  ansible.builtin.assert:
+    that:
+      - desktop_password_hash is match('^\$(6|y)\$')
+    fail_msg: Use a vaulted SHA-512-crypt or yescrypt hash, never a plaintext password.
+  when: desktop_password_hash is defined
+  no_log: true
+
+- name: Set an optional desktop console password without enabling password SSH
+  ansible.builtin.user:
+    name: ubuntu
+    password: "{{ desktop_password_hash }}"
+    password_lock: false
+    update_password: always
+  when: desktop_password_hash is defined
+  no_log: true
+  diff: false

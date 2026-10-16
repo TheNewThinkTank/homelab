@@ -1,0 +1,28 @@
+---
+all:
+  vars:
+    ansible_user: ubuntu
+    ansible_python_interpreter: /usr/bin/python3
+    cluster_name: pn51
+    k3s_pod_cidr: 10.42.0.0/16
+    k3s_service_cidr: 10.43.0.0/16
+    k3s_cluster_dns: 10.43.0.10
+  children:
+    k3s_cluster:
+      children:
+        k3s_server:
+          hosts:
+            pn51-server-1:
+              ansible_host: 192.0.2.40
+              proxmox_vm_id: 5100
+        k3s_agents:
+          hosts:
+            pn51-worker-1:
+              ansible_host: 192.0.2.41
+              proxmox_vm_id: 5101
+            pn51-worker-2:
+              ansible_host: 192.0.2.42
+              proxmox_vm_id: 5102
+            pn51-worker-3:
+              ansible_host: 192.0.2.43
+              proxmox_vm_id: 5103

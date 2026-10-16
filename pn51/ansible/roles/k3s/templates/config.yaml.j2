@@ -1,0 +1,26 @@
+node-name: {{ inventory_hostname | to_json }}
+node-ip: {{ ansible_host | to_json }}
+flannel-iface: {{ ansible_facts['default_ipv4']['interface'] | to_json }}
+token-file: /etc/rancher/k3s/token
+protect-kernel-defaults: true
+{% if k3s_role == 'server' %}
+cluster-init: true
+cluster-cidr: {{ k3s_pod_cidr | to_json }}
+service-cidr: {{ k3s_service_cidr | to_json }}
+cluster-dns: {{ k3s_cluster_dns | to_json }}
+secrets-encryption: true
+write-kubeconfig-mode: "0600"
+tls-san:
+  - {{ ansible_host | to_json }}
+disable:
+  - traefik
+  - servicelb
+node-taint:
+  - "node-role.kubernetes.io/control-plane=true:NoSchedule"
+etcd-snapshot-schedule-cron: "0 */6 * * *"
+etcd-snapshot-retention: 14
+{% else %}
+server: {{ ('https://' ~ hostvars[k3s_server_host]['ansible_host'] ~ ':6443') | to_json }}
+node-label:
+  - "node-role.kubernetes.io/worker=true"
+{% endif %}

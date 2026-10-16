@@ -1,0 +1,93 @@
+---
+- name: Exercise real K3s templates without SSH or a cluster
+  hosts: k3s_cluster
+  connection: local
+  become: false
+  gather_facts: false
+  vars_files:
+    - ../pn51/ansible/group_vars/all.yml
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    ansible_facts:
+      default_ipv4:
+        interface: ens18
+    k3s_role: "{{ 'server' if inventory_hostname in groups['k3s_server'] else 'agent' }}"
+    k3s_server_host: "{{ groups['k3s_server'][0] }}"
+    template_directory: "{{ playbook_dir }}/../.local/test-templates"
+    config_template: "{{ playbook_dir }}/../pn51/ansible/roles/k3s/templates/config.yaml.j2"
+    unit_template: "{{ playbook_dir }}/../pn51/ansible/roles/k3s/templates/k3s.service.j2"
+  tasks:
+    - name: Create private template evidence directory
+      ansible.builtin.file:
+        path: "{{ template_directory }}"
+        state: directory
+        mode: '0700'
+
+    - name: Render the actual role configuration for every VM
+      ansible.builtin.template:
+        src: "{{ config_template }}"
+        dest: "{{ template_directory }}/{{ inventory_hostname }}.yaml"
+        mode: '0600'
+
+    - name: Render the actual service unit for every VM
+      ansible.builtin.template:
+        src: "{{ unit_template }}"
+        dest: "{{ template_directory }}/{{ inventory_hostname }}.service"
+        mode: '0644'
+
+    - name: Render configuration again to prove local convergence
+      ansible.builtin.template:
+        src: "{{ config_template }}"
+        dest: "{{ template_directory }}/{{ inventory_hostname }}.yaml"
+        mode: '0600'
+      register: template_second_run
+
+    - name: Read the rendered configuration
+      ansible.builtin.slurp:
+        src: "{{ template_directory }}/{{ inventory_hostname }}.yaml"
+      register: template_config_source
+
+    - name: Read the rendered systemd unit
+      ansible.builtin.slurp:
+        src: "{{ template_directory }}/{{ inventory_hostname }}.service"
+      register: template_unit_source
+
+    - name: Validate the shared configuration and service contracts
+      ansible.builtin.assert:
+        that:
+          - not template_second_run.changed
+          - template_configuration['node-name'] == inventory_hostname
+          - template_configuration['node-ip'] == ansible_host
+          - template_configuration['flannel-iface'] == 'ens18'
+          - template_configuration['token-file'] == '/etc/rancher/k3s/token'
+          - template_configuration['protect-kernel-defaults']
+          - "'ExecStart=/usr/local/bin/k3s ' ~ k3s_role in (template_unit_source.content | b64decode)"
+          - "'--token' not in (template_unit_source.content | b64decode)"
+      vars:
+        template_configuration: "{{ template_config_source.content | b64decode | from_yaml }}"
+
+    - name: Validate server encryption, network, scheduling, and snapshot settings
+      ansible.builtin.assert:
+        that:
+          - template_configuration['cluster-init']
+          - template_configuration['secrets-encryption']
+          - template_configuration['write-kubeconfig-mode'] == '0600'
+          - template_configuration['cluster-cidr'] == k3s_pod_cidr
+          - template_configuration['service-cidr'] == k3s_service_cidr
+          - template_configuration['cluster-dns'] == k3s_cluster_dns
+          - template_configuration['disable'] == ['traefik', 'servicelb']
+          - template_configuration['etcd-snapshot-retention'] == 14
+          - template_configuration['node-taint'] | length == 1
+      vars:
+        template_configuration: "{{ template_config_source.content | b64decode | from_yaml }}"
+      when: k3s_role == 'server'
+
+    - name: Validate agent join settings do not contain server-only flags
+      ansible.builtin.assert:
+        that:
+          - template_configuration['server'] == 'https://' ~ hostvars[k3s_server_host]['ansible_host'] ~ ':6443'
+          - "'cluster-init' not in template_configuration"
+          - "'secrets-encryption' not in template_configuration"
+      vars:
+        template_configuration: "{{ template_config_source.content | b64decode | from_yaml }}"
+      when: k3s_role == 'agent'

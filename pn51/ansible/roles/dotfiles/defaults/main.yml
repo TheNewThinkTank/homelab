@@ -1,0 +1,7 @@
+---
+dotfiles_enabled: false
+dotfiles_repository: https://github.com/TheNewThinkTank/dotfiles.git
+dotfiles_revision: b703d09fe26c5bd7e9daac92450f3c313a4c7c6a
+dotfiles_profile: personal
+dotfiles_home: /home/ubuntu
+dotfiles_checkout: "{{ dotfiles_home }}/.local/share/dotfiles/source"

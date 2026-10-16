@@ -1,0 +1,65 @@
+---
+- name: Select the architecture-specific Kubernetes artifact
+  ansible.builtin.set_fact:
+    dotfiles_kubectl_asset: "{{ dotfiles_tools.assets.kubectl[ansible_facts['architecture']] }}"
+    dotfiles_kubectl_directory: >-
+      {{ dotfiles_home }}/.local/share/dotfiles/tools/kubectl-{{ dotfiles_tools.assets.kubectl.version }}-{{ ansible_facts['architecture'] }}
+
+- name: Require the official Kubernetes source and SHA-256
+  ansible.builtin.assert:
+    that:
+      - >-
+        dotfiles_kubectl_asset.url == 'https://dl.k8s.io/release/v' ~
+        dotfiles_tools.assets.kubectl.version ~ '/bin/linux/' ~
+        ({'x86_64': 'amd64', 'aarch64': 'arm64'}[ansible_facts['architecture']]) ~ '/kubectl'
+      - dotfiles_kubectl_asset.sha256 is match('^[a-f0-9]{64}$')
+    fail_msg: kubectl must come from dl.k8s.io with the reviewed checksum.
+
+- name: Inspect an existing user-local Kubernetes client
+  ansible.builtin.stat:
+    path: "{{ dotfiles_home }}/.local/bin/kubectl"
+    follow: false
+  register: dotfiles_previous_kubectl
+
+- name: Preserve user-local binaries not managed by this pin
+  ansible.builtin.assert:
+    that:
+      - >-
+        not dotfiles_previous_kubectl.stat.exists or
+        ((dotfiles_previous_kubectl.stat.islnk | default(false)) and
+        dotfiles_previous_kubectl.stat.lnk_source == dotfiles_kubectl_directory ~ '/kubectl')
+    fail_msg: Back up and relocate the existing user-local kubectl before selecting a different pin.
+
+- name: Create user-local binary and artifact directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ dotfiles_home }}/.local/bin"
+    - "{{ dotfiles_kubectl_directory }}"
+
+- name: Download the official Kubernetes client with checksum verification
+  ansible.builtin.get_url:
+    url: "{{ dotfiles_kubectl_asset.url }}"
+    dest: "{{ dotfiles_kubectl_directory }}/kubectl"
+    checksum: "sha256:{{ dotfiles_kubectl_asset.sha256 }}"
+    mode: '0755'
+
+- name: Expose the pinned client without replacing an unrelated binary
+  ansible.builtin.file:
+    src: "{{ dotfiles_kubectl_directory }}/kubectl"
+    dest: "{{ dotfiles_home }}/.local/bin/kubectl"
+    state: link
+    force: false
+
+- name: Read the installed Kubernetes client version
+  ansible.builtin.command:
+    argv: ["{{ dotfiles_home }}/.local/bin/kubectl", version, --client, --output=json]
+  register: dotfiles_client_version
+  changed_when: false
+
+- name: Verify the installed client matches the selected artifact
+  ansible.builtin.assert:
+    that:
+      - (dotfiles_client_version.stdout | from_json).clientVersion.gitVersion == 'v' ~ dotfiles_tools.assets.kubectl.version

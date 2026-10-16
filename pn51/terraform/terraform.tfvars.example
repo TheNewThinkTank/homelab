@@ -1,0 +1,17 @@
+proxmox_node = "pn51"
+bridge       = "vmbr0"
+
+vm_datastore    = "local-lvm"
+image_datastore = "local"
+vm_id_start     = 5100
+
+network_cidr   = "192.168.50.0/24"
+gateway        = "192.168.50.1"
+node_ip_offset = 40
+dns_servers    = ["1.1.1.1", "9.9.9.9"]
+admin_cidrs    = ["192.168.50.10/32"]
+
+ssh_public_keys = ["REPLACE_WITH_YOUR_OPENSSH_PUBLIC_KEY"]
+
+vm_memory_mb = 6144
+vm_disk_gb   = 80

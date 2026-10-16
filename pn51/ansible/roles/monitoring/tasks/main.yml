@@ -1,0 +1,147 @@
+---
+- name: Wait for all four Kubernetes nodes
+  ansible.builtin.command:
+    argv: [/usr/local/bin/k3s, kubectl, wait, node, --all, --for=condition=Ready, --timeout=300s]
+  changed_when: false
+
+- name: Deploy monitoring from the private controller
+  delegate_to: localhost
+  become: false
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+  block:
+    - name: Check the local Helm major version
+      ansible.builtin.command:
+        argv: [helm, version, --short]
+      register: monitoring_helm_version
+      changed_when: false
+
+    - name: Require the tested Helm 3 interface
+      ansible.builtin.assert:
+        that:
+          - monitoring_helm_version.stdout is match('^v3\.')
+        fail_msg: Install Helm 3; this workflow does not silently use a different Helm major version.
+
+    - name: Download the pinned chart archive with its verified digest
+      ansible.builtin.get_url:
+        url: >-
+          https://github.com/prometheus-community/helm-charts/releases/download/kube-prometheus-stack-{{ monitoring_chart_version
+          }}/kube-prometheus-stack-{{ monitoring_chart_version }}.tgz
+        dest: "{{ monitoring_chart_path }}"
+        checksum: "{{ monitoring_chart_checksum }}"
+        mode: '0600'
+
+    - name: Parse pinned chart CRDs with the safe YAML 1.2 parser
+      ansible.builtin.command:
+        argv:
+          - "{{ ansible_playbook_python }}"
+          - "{{ playbook_dir }}/../../scripts/homelab.py"
+          - chart-crds
+          - "{{ monitoring_chart_path }}"
+      register: monitoring_crds
+      changed_when: false
+
+    - name: Reconcile operator CRDs using server-side apply
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_local_path }}"
+        validate_certs: true
+        state: present
+        definition: "{{ monitoring_crds.stdout | from_json }}"
+        apply: true
+        server_side_apply:
+          field_manager: homelab-ansible
+          force_conflicts: false
+
+    - name: Check that the selected storage class exists
+      kubernetes.core.k8s_info:
+        kubeconfig: "{{ kubeconfig_local_path }}"
+        validate_certs: true
+        api_version: storage.k8s.io/v1
+        kind: StorageClass
+        name: "{{ monitoring_storage_class }}"
+      register: monitoring_storage
+      until: monitoring_storage.resources | length == 1
+      retries: 60
+      delay: 5
+
+    - name: Create the monitoring namespace with an explicit node-exporter security exception
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_local_path }}"
+        validate_certs: true
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: "{{ monitoring_namespace }}"
+            labels:
+              pod-security.kubernetes.io/enforce: privileged
+              pod-security.kubernetes.io/audit: restricted
+              pod-security.kubernetes.io/warn: restricted
+
+    - name: Reconcile Grafana bootstrap credentials without storing them in Helm values
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_local_path }}"
+        validate_certs: true
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: grafana-admin
+            namespace: "{{ monitoring_namespace }}"
+          type: Opaque
+          data:
+            admin-user: "{{ grafana_admin_user | b64encode }}"
+            admin-password: "{{ grafana_admin_password | b64encode }}"
+      no_log: true
+      diff: false
+
+    - name: Install or upgrade the pinned monitoring release atomically
+      kubernetes.core.helm:
+        kubeconfig: "{{ kubeconfig_local_path }}"
+        validate_certs: true
+        name: "{{ monitoring_release_name }}"
+        chart_ref: "{{ monitoring_chart_path }}"
+        chart_version: "{{ monitoring_chart_version }}"
+        release_namespace: "{{ monitoring_namespace }}"
+        create_namespace: false
+        skip_crds: true
+        reset_values: true
+        atomic: true
+        wait: true
+        timeout: 20m
+        values: "{{ monitoring_base_values | combine(monitoring_storage_overrides, recursive=True) }}"
+      vars:
+        monitoring_base_values: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/../monitoring/values.yml') | from_yaml }}"
+        monitoring_storage_overrides:
+          grafana:
+            persistence:
+              storageClassName: "{{ monitoring_storage_class }}"
+          prometheus:
+            prometheusSpec:
+              storageSpec:
+                volumeClaimTemplate:
+                  spec:
+                    storageClassName: "{{ monitoring_storage_class }}"
+          alertmanager:
+            alertmanagerSpec:
+              storage:
+                volumeClaimTemplate:
+                  spec:
+                    storageClassName: "{{ monitoring_storage_class }}"
+
+    - name: Wait for the operator-managed Prometheus instance
+      kubernetes.core.k8s_info:
+        kubeconfig: "{{ kubeconfig_local_path }}"
+        validate_certs: true
+        api_version: monitoring.coreos.com/v1
+        kind: Prometheus
+        name: monitoring-prometheus
+        namespace: "{{ monitoring_namespace }}"
+      register: monitoring_prometheus
+      until: >-
+        monitoring_prometheus.resources | length == 1 and
+        (monitoring_prometheus.resources[0].status.availableReplicas | default(0) | int) == 1
+      retries: 60
+      delay: 5

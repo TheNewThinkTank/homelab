@@ -1,21 +1,36 @@
-## Asus PN51 Home Server Configuration
+# Asus PN51
 
-![](../img/PN51.png)
+| Component | Target |
+| --- | --- |
+| CPU | AMD Ryzen 7 5700U, 8 cores / 16 threads |
+| Graphics | Integrated Radeon Vega; guests use virtual displays, not GPU passthrough |
+| Network | Gigabit Ethernet, existing private LAN or VLAN |
+| Memory | 32 GiB |
+| Storage | 1 TB Samsung 980 NVMe |
+| Hypervisor | Proxmox VE 9 on bare metal |
 
-Asus PN51
-* AMD Ryzen™ 7 5700U Processor 1.8GHz (12M Cache, up to 4.3GHz)
-* Integrated - Radeon™ Vega Graphics
-* Gigabit LAN, Realtek® 8111EP
-* 32GB Crucial Ballistix LDDR4 Memory
-* 1TB Samsung 980 NVME PCIE4.0 
+## Resource Budget
 
-### Networking:
+| Guest | Role | vCPU | RAM | Disk |
+| --- | --- | --- | --- | --- |
+| `pn51-server-1` | K3s control plane and embedded etcd | 2 | 6 GiB | 80 GiB |
+| `pn51-worker-1` | K3s worker | 2 | 6 GiB | 80 GiB |
+| `pn51-worker-2` | K3s worker | 2 | 6 GiB | 80 GiB |
+| `pn51-worker-3` | K3s worker | 2 | 6 GiB | 80 GiB |
 
-- TODO: setup Firewall: (e.g. Cloudflare tunnels)
-- TODO: setup Auth proxy: (e.g. Authelia)
+Ubuntu Desktop runs on every guest, including the control plane. The full
+`ubuntu-desktop` package installs GNOME and GDM; this is not a server-only
+installation with a misleading name. A cloud image is the reproducible starting
+point rather than an interactive ISO installer.
 
-### Provisioning
+The administrator can use Proxmox's virtual console. Console login remains
+password-locked unless a password hash is supplied through the vault. SSH uses
+your existing keys and remains password-disabled even when console login is
+enabled.
 
-- Preferred provisioning flow: [pn51/ansible/playbook.yml](../../pn51/ansible/playbook.yml)
-- Manual bootstrap fallback: [pn51/ubuntu-node-bootstrap.sh](../../pn51/ubuntu-node-bootstrap.sh)
-- Security hardening script: [pn51/ubuntu_hardening.sh](../../pn51/ubuntu_hardening.sh)
+The control plane is tainted to keep ordinary workloads on workers. Desktop and
+monitoring consume real resources: this baseline is appropriate for learning and
+small services, not four simultaneous heavy desktop sessions or large LLMs.
+
+See [architecture](architecture-diagrams.md), [provisioning](../provisioning.md),
+and [configuration reference](../reference.md).

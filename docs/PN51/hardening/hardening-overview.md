@@ -1,39 +1,37 @@
-# Linux Hardening for Asus PN51 Mini PC
+# Threat Model
 
-Based on my setup (Asus PN51 running Ubuntu for hobby projects including self-hosted K8S), implementing some security hardening measures is beneficial, since I will be hosting web applications that may be accessible from the internet.
+This lab assumes a trusted administrator workstation, a private trusted node
+network, a patched Proxmox host, and Ubuntu/GitHub/Helm artifacts obtained through
+verified TLS and pinned checksums where supported.
 
-My activities listed below increase my attack surface, making security hardening important.
-- Self-hosting web applications
-- Running a Kubernetes cluster (K3S)
-- Using ArgoCD for deployments
-- Maintaining public GitHub repositories
+## What the Baseline Addresses
 
-## Recommended Approach
+| Risk | Control |
+| --- | --- |
+| Public Git credential exposure | Ignored local artifacts, Vault, no private-key generation in Terraform, history scans |
+| Accidental network exposure | Default-drop VM ingress, explicit administrator CIDRs, no public monitoring services |
+| Man-in-the-middle administration | Proxmox CA trust, verified SSH host keys, Kubernetes CA validation, secure worker join token |
+| Configuration drift | Declarative roles, handlers, mock/template tests, full live second-run acceptance |
+| Unintended destructive replacement | Exact worker selection, PV guard, full-plan scope validation, typed confirmation |
+| Accidental cluster identity loss | Stable inventory, stale-node detection, token mismatch guard, documented restore requirements |
 
-Rather than using a single "do-it-all" hardening script (which might be too aggressive or not tailored to my specific needs), I choose a more measured approach:
+## What Remains an Operator Responsibility
 
-### 1. Starting with a Baseline Hardening Tool
+One machine cannot provide physical high availability. Its NVMe disk and local
+volumes are not replicated. Scheduled local etcd snapshots are not off-host
+backups. A compromised administrator key, Proxmox host, or cluster-admin
+kubeconfig can control the lab.
 
-I currently consider using one of these established tools:
+Desktop increases the guest package and GUI attack surface. Node-exporter needs
+host inspection; its namespace permits privileged pod security. VXLAN traffic is
+private-network traffic, not an encrypted overlay. The cluster does not claim
+default-deny pod-to-pod policy or application-level authentication.
 
-- **Lynis** - An open-source security auditing tool that can both assess my system and provide hardening recommendations
-- **OpenSCAP** - Security compliance and hardening framework
-- **Ubuntu's built-in security features** - AppArmor, UFW (Uncomplicated Firewall), etc.
+Do not publish workloads until you have designed namespace RBAC, appropriate
+NetworkPolicies, ingress TLS/authentication, dependency updates, and application
+backup/restore. PodSecurityPolicy is removed from modern Kubernetes; use Pod
+Security Admission and current policy tooling instead.
 
-### 2. Key Areas to Focus On
-
-For my specific setup (home K8S cluster with web apps), I prioritize:
-
-- **Network security**: Configure UFW to limit exposed ports
-- **SSH hardening**: Key-based authentication, disable root login
-- **Container security**: Implement pod security policies in K8S
-- **Regular updates**: Keeping my system and applications updated
-- **Secure CI/CD practices**: For my ArgoCD workflows
-- **Least privilege principle**: For all services and applications
-
-### 3. K8S-Specific Security
-
-Since I am running K3S, I also plan to:
-- Implement network policies
-- Use RBAC properly
-- Consider tools like Falco for runtime security monitoring
+See the [enforced guest baseline](basic-hardening.md),
+[secret and network controls](../../security.md), and
+[backup/restore procedures](../../operations.md).

@@ -1,4 +1,24 @@
 site_name: homelab
+site_description: Reproducible Ubuntu Desktop and K3s infrastructure for the Asus PN51
+repo_url: https://github.com/TheNewThinkTank/homelab
+repo_name: TheNewThinkTank/homelab
+
+nav:
+  - Overview: index.md
+  - Provisioning: provisioning.md
+  - Architecture:
+      - Hardware: PN51/README.md
+      - Decisions and Diagrams: PN51/architecture-diagrams.md
+  - Operations: operations.md
+  - Monitoring: observability.md
+  - Security:
+      - Secrets and Network Boundaries: security.md
+      - Guest Baseline: PN51/hardening/basic-hardening.md
+      - Threat Model: PN51/hardening/hardening-overview.md
+  - Reference: reference.md
+  - Testing: testing.md
+  - Optional GitOps: gitops.md
+
 theme:
   name: material
   features:
@@ -33,9 +53,6 @@ extra:
 
 plugins:
   - search
-  - git-authors
-  - awesome-pages:
-      collapse_single_pages: true
 
 markdown_extensions:
   - pymdownx.superfences:

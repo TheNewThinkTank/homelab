@@ -1,35 +1,38 @@
-# Basic Linux Hardening Script for Ubuntu
+# Guest Baseline
 
-My basic [hardening script](../../../pn51/ubuntu_hardening.sh) for my Ubuntu system running on the Asus PN51. This script covers essential security measures without being overly aggressive, making it suitable for my home K8S setup.
+The Ansible baseline role is the only supported guest-bootstrap path. Do not run
+the former one-off hardening scripts over these nodes; their UFW, reverse-path
+filtering, package-upgrade, and service behavior conflict with this design.
 
-For repeatable provisioning across nodes, I also keep a matching Ansible playbook in [pn51/ansible/playbook.yml](../../../pn51/ansible/playbook.yml). The shell script remains useful for a one-off manual bootstrap, but Ansible is the preferred approach for re-running the same setup safely.
+## Enforced State
 
-## Important Notes Before Running This Script:
+- Ubuntu 26.04 x86-64 guest and minimum-memory assertions, after cloud-init.
+- Full Desktop, OpenSSH, AppArmor, guest agent, and security-update packages.
+- Public-key SSH only, no root SSH, low authentication-attempt limit, early
+	drop-in precedence, and configuration validation before a conditional reload.
+- Root-only K3s config/token and administrator kubeconfig; no token in systemd
+	arguments or Terraform state.
+- Persisted bridge-netfilter/overlay modules, forwarding enabled, and CNI-safe
+	reverse-path filtering. Kubernetes kernel-protection defaults are explicit.
+- Swap removed from active state and fstab; desktop sleep/suspend targets masked.
+- Security updates enabled without automatic reboots.
+- Desktop graphical target enabled; optional vaulted console password hash does
+	not enable password SSH.
 
-1. **Review the script carefully** before running it to ensure it aligns with your specific needs.
+VM ingress is enforced by Proxmox, not by duplicating iptables policy with guest
+UFW. Keep the datacenter firewall active and validate the boundary from another
+machine. AppArmor remains enabled; this is not a CIS certification claim.
 
-2. **SSH Warning**: The script disables password authentication for SSH and requires key-based authentication.
-Make sure you have SSH keys set up before running this script, or you might lock yourself out.
+## How to Verify the Baseline
 
-3. **Firewall Configuration**: The script includes common K8S ports, but you may need to adjust these based on your specific K8S setup.
+Run `make configure`, inspect the guests' Desktop consoles, then run
+`make verify` and `make idempotence`. On each guest, inspect SSH's effective
+configuration with `sudo sshd -T`, swap with `swapon --show`, and the boot target
+with `systemctl get-default`.
 
-4. **Backup**: Always create a system backup before applying security hardening measures.
+If networking fails, inspect the exact Proxmox rules, kernel settings, CNI pods,
+and routes before adding broad allow rules. If SSH hardening fails validation,
+keep the existing verified connection open and repair the failing setting.
 
-5. **Testing**: Consider testing this script in a non-production environment first.
-
-## How to Use the Script:
-
-1. Save the script to a file named `ubuntu_hardening.sh`
-2. Make it executable: `chmod +x ubuntu_hardening.sh`
-3. Run it with sudo: `sudo ./ubuntu_hardening.sh`
-4. Reboot your system after completion
-
-## Additional K8S-Specific Security
-
-For my K8S environment, I am considering these additional measures (not included in the script):
-
-1. Use `kube-bench` to check my cluster against CIS K8S Benchmarks
-2. Implement network policies to restrict pod-to-pod communication
-3. Use RBAC properly to limit access to the K8S API
-4. Implementing a service mesh like Istio for additional security controls
-5. Use secrets management solutions rather than storing secrets in plain text
+See [security boundaries](../../security.md), [testing](../../testing.md), and
+[maintenance](../../operations.md).
