@@ -1,0 +1,162 @@
+---
+- name: Guard and publish the VM cluster without erasing the legacy host data
+  hosts: pn51_host
+  become: true
+  gather_facts: false
+  any_errors_fatal: true
+  vars:
+    legacy_backup: /var/backups/homelab/legacy-k3s
+    local_backup: "{{ playbook_dir }}/../../.local/backups/legacy-k3s"
+    cluster_inventory: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/../../.local/inventory.json') | from_json }}"
+    worker_hosts: "{{ cluster_inventory.all.children.k3s_cluster.children.k3s_agents.hosts }}"
+  pre_tasks:
+    - name: Require deliberate retirement and a verified four-node VM inventory
+      ansible.builtin.assert:
+        that:
+          - retire_legacy_k3s | default(false) | bool
+          - worker_hosts | length == 3
+          - cluster_inventory.all.children.k3s_cluster.children.k3s_server.hosts | length == 1
+        fail_msg: Run make cutover CONFIRM=retire-host-k3s only after make verify passes.
+
+    - name: Verify the replacement cluster before stopping any legacy service
+      ansible.builtin.command:
+        argv: ["{{ ansible_playbook_python }}", "{{ playbook_dir }}/../../scripts/homelab.py", verify]
+      delegate_to: localhost
+      become: false
+      changed_when: false
+
+  tasks:
+    - name: Install the guarded legacy retirement helper
+      ansible.builtin.copy:
+        src: ../../scripts/retire-legacy-k3s.sh
+        dest: /usr/local/sbin/homelab-retire-legacy-k3s
+        owner: root
+        group: root
+        mode: '0700'
+
+    - name: Cold-back up and disable legacy host K3s without uninstalling it
+      ansible.builtin.command:
+        argv: [/usr/local/sbin/homelab-retire-legacy-k3s]
+      register: legacy_retirement
+      changed_when: "'original files were preserved' in legacy_retirement.stdout"
+
+    - name: Create a private off-host backup directory
+      ansible.builtin.file:
+        path: "{{ local_backup }}"
+        state: directory
+        mode: '0700'
+      delegate_to: localhost
+      become: false
+
+    - name: Permit the privileged libvirt administrator to stream the cold archive
+      ansible.builtin.file:
+        path: "{{ item }}"
+        owner: root
+        group: libvirt
+        mode: '0750'
+      loop: [/var/backups/homelab, "{{ legacy_backup }}"]
+
+    - name: Restrict readable archive files to root and the privileged administrator group
+      ansible.builtin.file:
+        path: "{{ legacy_backup }}/{{ item }}"
+        group: libvirt
+        mode: '0640'
+      loop: [state.tar, state.tar.sha256, resources.json, complete]
+
+    - name: Stream the cold archive and inventory into private off-host storage
+      ansible.builtin.fetch:
+        src: "{{ legacy_backup }}/{{ item }}"
+        dest: "{{ local_backup }}/{{ item }}"
+        flat: true
+      become: false
+      loop: [state.tar, state.tar.sha256, resources.json, complete]
+      no_log: true
+
+    - name: Restrict off-host backup files
+      ansible.builtin.file:
+        path: "{{ local_backup }}/{{ item }}"
+        mode: '0600'
+      delegate_to: localhost
+      become: false
+      loop: [state.tar, state.tar.sha256, resources.json, complete]
+
+    - name: Read the verified archive digest
+      ansible.builtin.set_fact:
+        legacy_expected_digest: "{{ lookup('ansible.builtin.file', local_backup ~ '/state.tar.sha256').split()[0] }}"
+
+    - name: Calculate the off-host archive checksum
+      ansible.builtin.stat:
+        path: "{{ local_backup }}/state.tar"
+        checksum_algorithm: sha256
+      delegate_to: localhost
+      become: false
+      register: legacy_local_archive
+
+    - name: Refuse cutover without an independently verified off-host archive
+      ansible.builtin.assert:
+        that:
+          - legacy_local_archive.stat.checksum == legacy_expected_digest
+
+    - name: Install the TCP ingress proxy
+      ansible.builtin.apt:
+        name: haproxy
+        state: present
+        lock_timeout: 600
+
+    - name: Reconcile the host ingress proxy configuration
+      ansible.builtin.template:
+        src: haproxy.cfg.j2
+        dest: /etc/homelab-ingress.cfg
+        owner: root
+        group: haproxy
+        mode: '0640'
+        validate: /usr/sbin/haproxy -c -f %s
+      notify: Restart homelab ingress
+
+    - name: Reconcile the dedicated ingress proxy service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/homelab-ingress.service
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=PN51 TCP ingress to the Terraform-managed Kubernetes VMs
+          After=network-online.target libvirtd.service
+          Wants=network-online.target
+          [Service]
+          User=haproxy
+          Group=haproxy
+          AmbientCapabilities=CAP_NET_BIND_SERVICE
+          CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+          ExecStart=/usr/sbin/haproxy -W -db -f /etc/homelab-ingress.cfg
+          Restart=on-failure
+          NoNewPrivileges=true
+          ProtectHome=true
+          ProtectSystem=strict
+          PrivateTmp=true
+          [Install]
+          WantedBy=multi-user.target
+      notify: Restart homelab ingress
+
+    - name: Allow private-LAN HTTP and HTTPS without opening Kubernetes APIs
+      ansible.builtin.command:
+        argv: [/usr/sbin/ufw, allow, from, '192.168.1.0/24', to, any, port, '80,443', proto, tcp]
+      register: cutover_firewall
+      changed_when: "'Rule added' in cutover_firewall.stdout or 'Rules updated' in cutover_firewall.stdout"
+      environment:
+        LC_ALL: C
+
+    - name: Start and enable the owned ingress proxy
+      ansible.builtin.systemd_service:
+        name: homelab-ingress
+        enabled: true
+        state: started
+        daemon_reload: true
+
+  handlers:
+    - name: Restart homelab ingress
+      ansible.builtin.systemd_service:
+        name: homelab-ingress
+        state: restarted
+        daemon_reload: true

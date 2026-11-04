@@ -1,0 +1,74 @@
+---
+- name: Install the pinned Argo CD bootstrap from the private controller
+  delegate_to: localhost
+  become: false
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+  block:
+    - name: Create the isolated Argo CD and application namespaces
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_local_path }}"
+        validate_certs: true
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: "{{ item }}"
+            labels:
+              pod-security.kubernetes.io/enforce: restricted
+              pod-security.kubernetes.io/audit: restricted
+              pod-security.kubernetes.io/warn: restricted
+      loop: ["{{ argocd_namespace }}", "{{ argocd_application_namespace }}"]
+
+    - name: Default-deny Argo CD ingress before starting controllers
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_local_path }}"
+        validate_certs: true
+        state: present
+        definition:
+          apiVersion: networking.k8s.io/v1
+          kind: NetworkPolicy
+          metadata:
+            name: namespace-ingress
+            namespace: "{{ argocd_namespace }}"
+          spec:
+            podSelector: {}
+            policyTypes: [Ingress]
+
+    - name: Download the exact reviewed Argo CD chart
+      ansible.builtin.get_url:
+        url: "https://github.com/argoproj/argo-helm/releases/download/argo-cd-{{ argocd_chart_version }}/argo-cd-{{ argocd_chart_version }}.tgz"
+        dest: "{{ argocd_chart_path }}"
+        checksum: "{{ argocd_chart_checksum }}"
+        mode: '0600'
+
+    - name: Install the pinned Argo CD release atomically
+      kubernetes.core.helm:
+        kubeconfig: "{{ kubeconfig_local_path }}"
+        validate_certs: true
+        name: argocd
+        chart_ref: "{{ argocd_chart_path }}"
+        chart_version: "{{ argocd_chart_version }}"
+        release_namespace: "{{ argocd_namespace }}"
+        create_namespace: false
+        reset_values: true
+        atomic: true
+        wait: true
+        timeout: 15m
+        values: "{{ argocd_base_values | combine(argocd_domain_values, recursive=True) }}"
+      vars:
+        argocd_base_values: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/../gitops/values.yml') | from_yaml }}"
+        argocd_domain_values:
+          global:
+            domain: "argocd.{{ lab_domain }}"
+          configs:
+            cm:
+              url: "https://argocd.{{ lab_domain }}"
+
+    - name: Reconcile the application project without adopting infrastructure
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_local_path }}"
+        validate_certs: true
+        state: present
+        definition: "{{ lookup('ansible.builtin.template', 'projects.yml.j2') | from_yaml_all | list }}"

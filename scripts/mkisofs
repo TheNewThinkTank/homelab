@@ -1,0 +1,45 @@
+#!/usr/bin/env python3
+import argparse
+from pathlib import Path
+
+import pycdlib
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Cloud-init-only ISO builder for libvirt")
+    parser.add_argument("-o", "-output", dest="output", required=True)
+    parser.add_argument("-V", "-volid", dest="volume", default="cidata")
+    parser.add_argument("-J", "-joliet", action="store_true")
+    parser.add_argument("-r", "-rock", action="store_true")
+    parser.add_argument("-quiet", action="store_true")
+    parser.add_argument("-input-charset", default="utf-8")
+    parser.add_argument("files", nargs="+")
+    arguments = parser.parse_args()
+    paths = [Path(filename) for filename in arguments.files]
+    allowed = {"user-data", "meta-data", "network-config"}
+    if arguments.volume.lower() != "cidata" or any(source.name not in allowed for source in paths):
+        parser.error("This helper only builds cidata images containing cloud-init seed files.")
+    if not {"user-data", "meta-data"}.issubset({source.name for source in paths}):
+        parser.error("Both user-data and meta-data are required.")
+    primary_names = {
+        "user-data": "USER_DAT",
+        "meta-data": "META_DAT",
+        "network-config": "NETWORK_",
+    }
+    image = pycdlib.PyCdlib()
+    image.new(interchange_level=1, joliet=3, rock_ridge="1.09", vol_ident="cidata")
+    try:
+        for source in paths:
+            image.add_file(
+                str(source),
+                iso_path=f"/{primary_names[source.name]}.;1",
+                rr_name=source.name,
+                joliet_path=f"/{source.name}",
+            )
+        image.write(arguments.output)
+    finally:
+        image.close()
+
+
+if __name__ == "__main__":
+    main()

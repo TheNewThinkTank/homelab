@@ -1,0 +1,80 @@
+---
+- name: Reconcile the Ubuntu PN51 virtualization host
+  hosts: pn51_host
+  become: true
+  gather_facts: true
+  any_errors_fatal: true
+  vars:
+    pn51_host_user: gus
+  pre_tasks:
+    - name: Require the intended Ubuntu host and sufficient memory
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['system'] == 'Linux'
+          - ansible_facts['distribution'] == 'Ubuntu'
+          - ansible_facts['distribution_version'] is version('26.04', '>=')
+          - ansible_facts['architecture'] == 'x86_64'
+          - ansible_facts['memtotal_mb'] >= 28000
+          - pn51_host_user != 'root'
+        fail_msg: This playbook is only for the Ubuntu PN51, never the Mac controller.
+
+  tasks:
+    - name: Install native virtualization and cloud image tools
+      ansible.builtin.apt:
+        name:
+          - cloud-image-utils
+          - libvirt-clients
+          - libvirt-daemon-system
+          - python3-lxml
+          - qemu-system-x86
+          - qemu-utils
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Start libvirt and enable it at boot
+      ansible.builtin.systemd_service:
+        name: libvirtd
+        enabled: true
+        state: started
+
+    - name: Grant the SSH operator access to system libvirt
+      ansible.builtin.user:
+        name: "{{ pn51_host_user }}"
+        groups: libvirt
+        append: true
+
+    - name: Create the managed virtualization directory
+      ansible.builtin.file:
+        path: /var/lib/libvirt/homelab
+        state: directory
+        owner: libvirt-qemu
+        group: libvirt
+        mode: "0750"
+
+    - name: Permit guest NAT egress through the existing host firewall
+      ansible.builtin.command:
+        argv:
+          - /usr/sbin/ufw
+          - route
+          - allow
+          - in
+          - 'on'
+          - virbr51
+          - out
+          - 'on'
+          - "{{ ansible_facts['default_ipv4']['interface'] }}"
+      register: pn51_ufw_route
+      changed_when: "'Rule added' in pn51_ufw_route.stdout or 'Rules updated' in pn51_ufw_route.stdout"
+      environment:
+        LC_ALL: C
+
+    - name: Prevent the Desktop host from suspending the VMs
+      ansible.builtin.systemd_service:
+        name: "{{ item }}"
+        masked: true
+      loop:
+        - sleep.target
+        - suspend.target
+        - hibernate.target
+        - hybrid-sleep.target

@@ -21,25 +21,25 @@
       ansible.builtin.file:
         path: "{{ template_directory }}"
         state: directory
-        mode: '0700'
+        mode: "0700"
 
     - name: Render the actual role configuration for every VM
       ansible.builtin.template:
         src: "{{ config_template }}"
         dest: "{{ template_directory }}/{{ inventory_hostname }}.yaml"
-        mode: '0600'
+        mode: "0600"
 
     - name: Render the actual service unit for every VM
       ansible.builtin.template:
         src: "{{ unit_template }}"
         dest: "{{ template_directory }}/{{ inventory_hostname }}.service"
-        mode: '0644'
+        mode: "0644"
 
     - name: Render configuration again to prove local convergence
       ansible.builtin.template:
         src: "{{ config_template }}"
         dest: "{{ template_directory }}/{{ inventory_hostname }}.yaml"
-        mode: '0600'
+        mode: "0600"
       register: template_second_run
 
     - name: Read the rendered configuration
@@ -75,7 +75,9 @@
           - template_configuration['cluster-cidr'] == k3s_pod_cidr
           - template_configuration['service-cidr'] == k3s_service_cidr
           - template_configuration['cluster-dns'] == k3s_cluster_dns
-          - template_configuration['disable'] == ['traefik', 'servicelb']
+          - template_configuration['default-local-storage-path'] == homelab_data_mount ~ '/storage'
+          - "'disable' not in template_configuration"
+          - "'127.0.0.1' in template_configuration['tls-san']"
           - template_configuration['etcd-snapshot-retention'] == 14
           - template_configuration['node-taint'] | length == 1
       vars:
@@ -88,6 +90,34 @@
           - template_configuration['server'] == 'https://' ~ hostvars[k3s_server_host]['ansible_host'] ~ ':6443'
           - "'cluster-init' not in template_configuration"
           - "'secrets-encryption' not in template_configuration"
+          - template_configuration['node-label'] == ['homelab.local/role=worker']
       vars:
         template_configuration: "{{ template_config_source.content | b64decode | from_yaml }}"
       when: k3s_role == 'agent'
+
+- name: Render secured platform templates with non-secret fixtures
+  hosts: k3s_server
+  connection: local
+  become: false
+  gather_facts: false
+  vars_files:
+    - ../pn51/ansible/group_vars/all.yml
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+    template_directory: "{{ playbook_dir }}/../.local/test-templates"
+    authelia_password_hash: "$argon2id$non-secret-rendering-fixture"
+    authelia_session_secret: non-secret-session-fixture-0123456789
+    authelia_storage_key: non-secret-storage-fixture-0123456789
+    authelia_jwt_secret: "{{ 'fixture' * 8 }}"
+    platform_control_plane_overlay_ip: "{{ k3s_pod_cidr.split('/')[0] }}"
+  tasks:
+    - name: Render real platform resources through the owning role
+      ansible.builtin.include_role:
+        name: platform
+        tasks_from: render-test.yml
+
+    - name: Render the reviewed Argo CD project boundary
+      ansible.builtin.template:
+        src: ../pn51/ansible/roles/argocd/templates/projects.yml.j2
+        dest: "{{ template_directory }}/argocd-projects.yml"
+        mode: '0600'

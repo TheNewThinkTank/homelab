@@ -3,3 +3,9 @@
   ansible.builtin.systemd_service:
     name: ssh
     state: reloaded
+
+- name: Reload guest firewall
+  ansible.builtin.systemd_service:
+    name: homelab-firewall
+    state: reloaded
+    daemon_reload: true

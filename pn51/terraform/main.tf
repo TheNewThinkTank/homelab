@@ -1,14 +1,14 @@
 locals {
-  ubuntu_image_url    = "https://cloud-images.ubuntu.com/releases/resolute/release-20260927/ubuntu-26.04-server-cloudimg-amd64.img"
-  ubuntu_image_sha256 = "8800651811af9a85465ad1d552add729947bb16488dddb4a9b5305a3d97332b2"
+  image          = jsondecode(file("${path.module}/image.json"))
+  image_path     = abspath(coalesce(var.image_path, "${path.module}/../../.local/images/${local.image.name}"))
+  image_checksum = coalesce(var.image_checksum, local.image.sha256)
   nodes = {
     for index in range(4) : "${var.cluster_name}-${index == 0 ? "server-1" : "worker-${index}"}" => {
-      vm_id   = var.vm_id_start + index
       address = cidrhost(var.network_cidr, var.node_ip_offset + index)
+      mac     = "52:54:00:51:00:${format("%02x", var.node_ip_offset + index)}"
       role    = index == 0 ? "server" : "agent"
     }
   }
-  node_addresses = join(",", [for node in values(local.nodes) : "${node.address}/32"])
   networks = {
     nodes    = var.network_cidr
     pods     = var.pod_cidr
@@ -23,158 +23,144 @@ locals {
   ]))
 }
 
-resource "proxmox_download_file" "ubuntu" {
-  node_name           = var.proxmox_node
-  datastore_id        = var.image_datastore
-  content_type        = "import"
-  file_name           = "ubuntu-26.04-amd64-20260927.qcow2"
-  url                 = local.ubuntu_image_url
-  checksum            = local.ubuntu_image_sha256
-  checksum_algorithm  = "sha256"
-  verify              = true
-  overwrite           = false
-  overwrite_unmanaged = false
+resource "libvirt_pool" "cluster" {
+  name = var.cluster_name
+  type = "dir"
+  target {
+    path = "/var/lib/libvirt/homelab/${var.cluster_name}"
+  }
 }
 
-resource "proxmox_virtual_environment_vm" "node" {
+resource "libvirt_network" "cluster" {
+  name      = var.cluster_name
+  mode      = "nat"
+  bridge    = "virbr51"
+  domain    = "${var.cluster_name}.internal"
+  addresses = [var.network_cidr]
+  autostart = true
+  dhcp {
+    enabled = true
+  }
+  dns {
+    enabled = true
+  }
+}
+
+resource "libvirt_volume" "ubuntu" {
+  name   = local.image.name
+  pool   = libvirt_pool.cluster.name
+  source = local.image_path
+  format = "qcow2"
+
+  lifecycle {
+    precondition {
+      condition     = try(filesha256(local.image_path), "") == local.image_checksum
+      error_message = "Download the pinned, checksummed Ubuntu image with make image before planning."
+    }
+  }
+}
+
+resource "libvirt_volume" "node" {
   for_each = local.nodes
 
-  node_name       = var.proxmox_node
-  vm_id           = each.value.vm_id
-  name            = each.key
-  description     = "Terraform-managed Ubuntu 26.04 Desktop / K3s ${each.value.role}"
-  tags            = ["terraform", "ubuntu-26-04", "k3s", each.value.role]
-  on_boot         = true
-  started         = true
-  stop_on_destroy = true
-  scsi_hardware   = "virtio-scsi-single"
-  boot_order      = ["scsi0"]
+  name           = "${each.key}.qcow2"
+  pool           = libvirt_pool.cluster.name
+  base_volume_id = libvirt_volume.ubuntu.id
+  format         = "qcow2"
+  size           = var.vm_disk_gb * 1024 * 1024 * 1024
+}
 
-  cpu {
-    cores = 2
-    type  = "host"
+resource "libvirt_volume" "data" {
+  for_each = local.nodes
+
+  name   = "${each.key}-data.qcow2"
+  pool   = libvirt_pool.cluster.name
+  format = "qcow2"
+  size   = var.vm_data_disk_gb * 1024 * 1024 * 1024
+
+  lifecycle {
+    prevent_destroy = true
   }
+}
 
-  memory {
-    dedicated = var.vm_memory_mb
-    floating  = 0
-  }
+resource "libvirt_cloudinit_disk" "node" {
+  for_each = local.nodes
 
-  agent {
-    enabled = true
-    trim    = true
-    wait_for_ip {
-      disabled = true
-    }
-  }
-
-  disk {
-    datastore_id = var.vm_datastore
-    import_from  = proxmox_download_file.ubuntu.id
-    interface    = "scsi0"
-    file_format  = "raw"
-    size         = var.vm_disk_gb
-    discard      = "on"
-    iothread     = true
-  }
-
-  initialization {
-    datastore_id = var.vm_datastore
-    dns {
-      servers = var.dns_servers
-    }
-    ip_config {
-      ipv4 {
-        address = "${each.value.address}/${split("/", var.network_cidr)[1]}"
-        gateway = var.gateway
+  name = "${each.key}-seed.iso"
+  pool = libvirt_pool.cluster.name
+  meta_data = yamlencode({
+    "instance-id"    = each.key
+    "local-hostname" = each.key
+  })
+  user_data = "#cloud-config\n${yamlencode({
+    hostname         = each.key
+    manage_etc_hosts = true
+    ssh_pwauth       = false
+    disable_root     = true
+    ssh_deletekeys   = true
+    users = [{
+      name                = "ubuntu"
+      groups              = ["adm", "sudo"]
+      shell               = "/bin/bash"
+      lock_passwd         = true
+      sudo                = "ALL=(ALL) NOPASSWD:ALL"
+      ssh_authorized_keys = [for key in var.ssh_public_keys : trimspace(key)]
+    }]
+    packages = ["qemu-guest-agent"]
+    runcmd   = [["systemctl", "enable", "--now", "qemu-guest-agent"]]
+  })}"
+  network_config = yamlencode({
+    version = 2
+    ethernets = {
+      eth0 = {
+        match       = { macaddress = each.value.mac }
+        dhcp4       = false
+        dhcp6       = false
+        addresses   = ["${each.value.address}/${split("/", var.network_cidr)[1]}"]
+        routes      = [{ to = "default", via = var.gateway }]
+        nameservers = { addresses = var.dns_servers }
       }
     }
-    user_account {
-      username = "ubuntu"
-      keys     = [for key in var.ssh_public_keys : trimspace(key)]
-    }
-  }
-
-  network_device {
-    bridge   = var.bridge
-    model    = "virtio"
-    firewall = true
-  }
-
-  operating_system {
-    type = "l26"
-  }
-
-  vga {
-    type   = "std"
-    memory = 32
-  }
-
-  serial_device {}
-
-  startup {
-    order    = each.value.role == "server" ? 1 : 2
-    up_delay = 30
-  }
+  })
 }
 
-resource "proxmox_virtual_environment_firewall_rules" "node" {
+resource "libvirt_domain" "node" {
   for_each = local.nodes
 
-  node_name = var.proxmox_node
-  vm_id     = proxmox_virtual_environment_vm.node[each.key].vm_id
+  name       = each.key
+  memory     = var.vm_memory_mb
+  vcpu       = var.vm_vcpus
+  autostart  = true
+  running    = true
+  qemu_agent = true
+  cloudinit  = libvirt_cloudinit_disk.node[each.key].id
 
-  dynamic "rule" {
-    for_each = var.admin_cidrs
-    content {
-      type    = "in"
-      action  = "ACCEPT"
-      proto   = "tcp"
-      dport   = each.value.role == "server" ? "22,6443" : "22"
-      source  = rule.value
-      comment = "Trusted administrators only"
-    }
+  xml {
+    xslt = templatefile("${path.module}/domain.xslt", {
+      base_image_path = "/var/lib/libvirt/homelab/${var.cluster_name}/${local.image.name}"
+      root_disk_path  = libvirt_volume.node[each.key].id
+      data_disk_path  = libvirt_volume.data[each.key].id
+    })
   }
 
-  rule {
-    type    = "in"
-    action  = "ACCEPT"
-    proto   = "udp"
-    dport   = "8472"
-    source  = local.node_addresses
-    comment = "Flannel VXLAN between cluster nodes only"
+  cpu {
+    mode = "host-passthrough"
   }
-
-  rule {
-    type    = "in"
-    action  = "ACCEPT"
-    proto   = "tcp"
-    dport   = each.value.role == "server" ? "6443,10250" : "10250"
-    source  = local.node_addresses
-    comment = "Kubernetes API and kubelet between cluster nodes only"
+  disk {
+    volume_id = libvirt_volume.node[each.key].id
   }
-
-  rule {
-    type    = "in"
-    action  = "ACCEPT"
-    proto   = "icmp"
-    source  = local.node_addresses
-    comment = "Cluster network diagnostics"
+  disk {
+    volume_id = libvirt_volume.data[each.key].id
   }
-}
-
-resource "proxmox_virtual_environment_firewall_options" "node" {
-  for_each   = local.nodes
-  depends_on = [proxmox_virtual_environment_firewall_rules.node]
-
-  node_name     = var.proxmox_node
-  vm_id         = proxmox_virtual_environment_vm.node[each.key].vm_id
-  enabled       = true
-  input_policy  = "DROP"
-  output_policy = "ACCEPT"
-  ipfilter      = false
-  macfilter     = true
-  dhcp          = false
-  ndp           = false
-  radv          = false
+  network_interface {
+    network_id     = libvirt_network.cluster.id
+    hostname       = each.key
+    mac            = each.value.mac
+    wait_for_lease = false
+  }
+  console {
+    type        = "pty"
+    target_type = "serial"
+    target_port = "0"
+  }
 }

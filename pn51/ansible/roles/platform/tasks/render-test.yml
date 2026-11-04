@@ -1,0 +1,24 @@
+---
+- name: Render the platform manifest with fixture credentials
+  ansible.builtin.template:
+    src: resources.yml.j2
+    dest: "{{ template_directory }}/platform-resources.yml"
+    mode: "0600"
+
+- name: Render the Authelia configuration with fixture credentials
+  ansible.builtin.template:
+    src: authelia-secret.yml.j2
+    dest: "{{ template_directory }}/authelia-fixture.yml"
+    mode: "0600"
+
+- name: Render again to verify template convergence
+  ansible.builtin.template:
+    src: resources.yml.j2
+    dest: "{{ template_directory }}/platform-resources.yml"
+    mode: "0600"
+  register: platform_second_render
+
+- name: Require unchanged platform template rendering
+  ansible.builtin.assert:
+    that:
+      - not platform_second_render.changed

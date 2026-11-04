@@ -4,7 +4,7 @@ metadata:
   name: fitness-tracker-argo-application
   namespace: argocd
 spec:
-  project: default
+  project: homelab
 
   source:
     repoURL: https://github.com/TheNewThinkTank/homelab.git

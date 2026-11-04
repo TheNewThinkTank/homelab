@@ -12,16 +12,18 @@ make check
 ```
 
 The chart download and dependency installation require internet access, but no
-Proxmox, SSH, vault, or Kubernetes credentials. Tests never call Terraform apply
+host, guest SSH, vault, or Kubernetes credentials. Tests never call Terraform apply
 against the host.
 
 | Gate | Evidence |
 | --- | --- |
 | Terraform fmt/validate | Configuration matches the pinned real provider schema |
-| Terraform mocked plans | Exactly four VMs; one server/three workers; default RAM budget; firewalls; deterministic inventory |
-| Negative Terraform cases | World-open administration, small Desktop RAM, gateway/IP collisions, overlapping networks, private-key input rejected |
+| Terraform mocked plans | Exactly four VMs; one server/three workers; RAM budget; NAT; cloud-init; separate retained disks; deterministic inventory |
+| Negative Terraform cases | Small/excessive RAM, gateway/IP collisions, overlapping networks, private-key input, bad image digest rejected |
 | Ansible production lint | Fully qualified modules, schema/syntax, task conventions, YAML formatting |
 | Real Ansible templates | All four host configs rendered; server/agent flag separation; token-file use; unchanged second render |
+| Platform render gate | 33 real resources; seven MFA/TLS routes, restricted containers, credential-free Homepage, network policies, read-only Headlamp RBAC |
+| Argo CD chart gate | Exact official archive checksum, three CRDs, private services, non-root workloads, disabled anonymous access, repository/namespace project limits |
 | Python regressions | Private modes, symlinks, vault encryption/failure, inventory precedence, replacement scope and PV guards, idempotence evidence |
 | Dotfiles role contracts | Mutable revisions rejected before package installation; public source and ubuntu ownership; local configuration fixture changes only when necessary |
 | Real pinned chart | Exact archive checksum; strict Helm lint; render against pinned Kubernetes version; private services; persistent storage; existing Grafana Secret |
@@ -44,14 +46,16 @@ make verify
 
 This requires the private inventory/kubeconfig and a reachable cluster. It checks
 all declared node names, exact K3s versions and Ready conditions, monitoring
-Deployment/StatefulSet/DaemonSet replica health, three Bound persistent claims,
-Grafana's database health, nonempty healthy Prometheus targets, and `helm test`.
+Deployment/StatefulSet/DaemonSet replica health, retained Bound application claims,
+Grafana database health, healthy Prometheus targets, Authelia/Headlamp/Homepage,
+Argo CD workload and server health, live project restrictions, DNS, Traefik,
+metrics, local-path storage, and `helm test`.
 Helm test creates a temporary chart test pod; it does not rebuild VMs.
 
-Also inspect the Desktop console on all guests, confirm the Proxmox datacenter
-firewall is enforcing the declared policy, and verify that a non-admin machine
-cannot reach guest SSH or the server API. An internal cluster health check cannot
-prove an external firewall is enabled.
+Also verify host and VM boot behavior, guest input firewall rules, and that a
+non-admin machine cannot reach guest SSH or the server API. After cutover, test
+HTTPS certificate validation, Authelia MFA, and denied anonymous dashboard
+access. An internal health check does not prove the external access boundary.
 
 ## How to Prove Full Convergence
 
@@ -75,15 +79,16 @@ unchanged; actual package, Secret, file, service, and Helm changes are not hidde
 ## How to Exercise Recovery
 
 On an isolated test copy, prove that a stateless worker can be replaced and
-rejoin under its original name, that a data-bearing worker is refused, and that
+rejoin under its original name, that protected data survives root replacement,
+that unprotected local data is refused, and that
 etcd plus application data can be restored from off-host backups. Run live
 acceptance and idempotence after each exercise. Never test a production restore
-against conflicting VM IDs or addresses.
+against conflicting libvirt names or addresses.
 
 ## Verification Limits
 
-Mocked plans do not prove Proxmox ACLs, imported-image boot behavior, guest-agent
-startup, Ubuntu Desktop installation, CNI traffic, kernel compatibility, or
+Mocked plans do not prove libvirt permissions, image boot behavior, guest-agent
+startup, protected filesystem mounting, CNI traffic, kernel compatibility, or
 physical capacity. Chart rendering does not prove successful operator scheduling
 or database migration. Local template convergence is not a substitute for the
 full live second-run check.

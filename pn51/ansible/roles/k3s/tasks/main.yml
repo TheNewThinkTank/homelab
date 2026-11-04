@@ -4,13 +4,13 @@
     path: "/etc/systemd/system/{{ k3s_service_name }}.service"
   register: k3s_previous_service
 
-- name: Check for a stale Kubernetes identity before joining a fresh worker
+- name: Check the worker identity in the running control plane
   ansible.builtin.command:
     argv: [/usr/local/bin/k3s, kubectl, get, node, "{{ inventory_hostname }}", --ignore-not-found, -o, name]
   delegate_to: "{{ k3s_server_host }}"
   register: k3s_existing_node
   changed_when: false
-  when: k3s_role == 'agent' and not k3s_previous_service.stat.exists
+  when: k3s_role == 'agent'
 
 - name: Require the guarded replacement procedure for an existing worker name
   ansible.builtin.assert:
@@ -40,6 +40,16 @@
     owner: root
     group: root
     mode: "0700"
+
+- name: Create the protected etcd snapshot directory
+  ansible.builtin.file:
+    path: "{{ homelab_data_mount }}/etcd-snapshots"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  when: k3s_role == 'server'
+  tags: [snapshots]
 
 - name: Inspect the existing token file
   ansible.builtin.stat:
@@ -108,6 +118,7 @@
   ansible.builtin.set_fact:
     k3s_drain_required: >-
       {{ k3s_role == 'agent' and k3s_previous_service.stat.exists and
+         (k3s_existing_node.stdout | default('') | length > 0) and
          (k3s_binary.changed or k3s_config.changed or k3s_unit.changed or k3s_token_file.changed) }}
 
 - name: Apply K3s changes with a guarded rolling restart
@@ -152,3 +163,51 @@
       delegate_to: "{{ k3s_server_host }}"
       when: k3s_drain_required and k3s_drain is defined and not (k3s_drain.skipped | default(false))
       changed_when: true
+
+- name: Reconcile retained storage on the control plane
+  when: k3s_role == 'server'
+  block:
+    - name: Read the packaged local-path storage configuration
+      ansible.builtin.command:
+        argv: [/usr/local/bin/k3s, kubectl, -n, kube-system, get, configmap, local-path-config, -o, json]
+      register: k3s_local_path
+      retries: 30
+      delay: 5
+      until: k3s_local_path.rc == 0
+      changed_when: false
+
+    - name: Place new persistent volumes on the protected data disks
+      ansible.builtin.command:
+        argv:
+          - /usr/local/bin/k3s
+          - kubectl
+          - -n
+          - kube-system
+          - patch
+          - configmap
+          - local-path-config
+          - --type=merge
+          - -p
+          - "{{ {'data': {'config.json': k3s_storage_config | to_json}} | to_json }}"
+      vars:
+        k3s_storage_config:
+          nodePathMap:
+            - node: DEFAULT_PATH_FOR_NON_LISTED_NODES
+              paths: ["{{ homelab_data_mount }}/storage"]
+      when: (k3s_local_path.stdout | from_json).data['config.json'] | from_json != k3s_storage_config
+      changed_when: true
+
+    - name: Declare a retained storage class without mutating the packaged class
+      ansible.builtin.copy:
+        dest: /var/lib/rancher/k3s/server/manifests/homelab-storage.yaml
+        owner: root
+        group: root
+        mode: '0600'
+        content: |
+          apiVersion: storage.k8s.io/v1
+          kind: StorageClass
+          metadata:
+            name: homelab-retained
+          provisioner: rancher.io/local-path
+          reclaimPolicy: Retain
+          volumeBindingMode: WaitForFirstConsumer

@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: default
+  namespace: {{ argocd_namespace }}
+spec:
+  sourceRepos: []
+  destinations: []
+  clusterResourceWhitelist: []
+  namespaceResourceBlacklist:
+    - group: '*'
+      kind: '*'
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: homelab
+  namespace: {{ argocd_namespace }}
+spec:
+  description: Reviewed application workloads only; infrastructure is Ansible-owned.
+  sourceRepos:
+    - {{ argocd_application_repository | to_json }}
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: {{ argocd_application_namespace }}
+  clusterResourceWhitelist: []
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  orphanedResources:
+    warn: true

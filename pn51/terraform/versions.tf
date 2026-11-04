@@ -2,13 +2,13 @@ terraform {
   required_version = ">= 1.10.0, < 2.0.0"
 
   required_providers {
-    proxmox = {
-      source  = "bpg/proxmox"
-      version = "0.116.1"
+    libvirt = {
+      source  = "dmacvicar/libvirt"
+      version = "0.8.3"
     }
   }
 }
 
-provider "proxmox" {
-  insecure = false
+provider "libvirt" {
+  uri = var.libvirt_uri
 }

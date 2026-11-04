@@ -6,23 +6,30 @@
 flowchart TB
     Git[Public Git repository] --> CI[Credential-free validation]
     Git --> Controller[Trusted administrator workstation]
-    Controller -->|Terraform: verified HTTPS API| Proxmox[Proxmox VE 9 on PN51]
-    Proxmox -->|Cloud-init: key and static address| Guests[Four Ubuntu 26.04 guests]
+    Controller -->|Ansible: host reconciliation| Host[Ubuntu Desktop and KVM on PN51]
+    Controller -->|Terraform: SSH and system libvirt| Host
+    Host -->|Cloud-init: key and private address| Guests[Four Ubuntu Server 26.04 VMs]
     Controller -->|Ansible: verified SSH| Guests
-    Guests --> Desktop[Ubuntu Desktop and guest baseline]
+    Guests --> Baseline[Server baseline and protected data disks]
     Guests --> Cluster[K3s: one server and three workers]
     Controller -->|Helm through verified Kubernetes API| Monitoring[Prometheus, Grafana, Alertmanager]
     Cluster --> Monitoring
+    Cluster --> Platform[Traefik, Authelia MFA, Headlamp, Homepage]
+    Controller -->|Pinned Helm bootstrap| Argo[Argo CD]
+    Argo -->|Reviewed repository and application namespace only| Apps[Application workloads]
 ```
 
 GitHub Actions validates source and scans Git history. It cannot reach the
-homelab and receives no Proxmox token, SSH key, vault password, or kubeconfig.
+homelab and receives no SSH key, vault password, or kubeconfig.
 The separate documentation publisher only writes the documentation branch.
 
-Terraform owns VM identity, CPU, RAM, disks, virtual displays, static addressing,
-the imported image, and VM firewall rules. Cloud-init owns the initial `ubuntu`
+Terraform owns VM identity, CPU, RAM, replaceable root disks, protected data
+disks, the NAT network, addresses, and imported image. Cloud-init owns the initial `ubuntu`
 account and authorized public keys. Ansible waits for cloud-init to finish, then
-owns the desktop, guest baseline, K3s service, and monitoring release.
+owns the Ubuntu host, guest baseline/firewall, K3s, monitoring, platform, and
+Argo CD bootstrap. Argo CD owns only explicitly admitted application workloads;
+its default project is locked and it does not adopt Ansible-managed resources.
+Legacy retirement is a separately guarded cold-backup and ingress cutover.
 
 The private Ansible inventory comes from Terraform output. CIDRs and the cluster
 DNS address travel through that inventory rather than being duplicated in group
@@ -32,17 +39,18 @@ variables. Helm release credentials are not stored in Terraform state.
 
 ```mermaid
 flowchart TB
-    Admin[Trusted administration subnet] -->|22 and server 6443 only| Bridge[Existing private bridge or VLAN]
+    Admin[Mac controller and trusted LAN] -->|SSH and LAN HTTPS| Host
     subgraph PN51[PN51: one physical failure domain]
-        Host[Proxmox: 8 GiB RAM reserved]
-        Bridge --> Server[server-1: Desktop, K3s, single-member etcd]
-        Bridge --> Worker1[worker-1: Desktop and K3s agent]
-        Bridge --> Worker2[worker-2: Desktop and K3s agent]
-        Bridge --> Worker3[worker-3: Desktop and K3s agent]
+        Host[Ubuntu Desktop and KVM: about half RAM reserved]
+        Host --> Bridge[virbr51: private NAT 10.51.0.0/24]
+        Bridge --> Server[server-1: K3s and single-member etcd]
+        Bridge --> Worker1[worker-1: K3s agent]
+        Bridge --> Worker2[worker-2: K3s agent]
+        Bridge --> Worker3[worker-3: K3s agent]
         Server <-->|6443, 10250, UDP 8472| Worker1
         Server <-->|6443, 10250, UDP 8472| Worker2
         Server <-->|6443, 10250, UDP 8472| Worker3
-        Worker1 --- LocalStorage[Node-local persistent volumes]
+        Worker1 --- LocalStorage[Separate protected data disks]
         Worker2 --- LocalStorage
         Worker3 --- LocalStorage
     end
@@ -53,20 +61,23 @@ flowchart TB
 All node pairs also exchange VXLAN and kubelet traffic where required. The
 diagram abbreviates those links. No etcd ports or NodePort range are exposed
 between VMs: this is not a multi-server etcd cluster, and applications are not
-published by default.
+published directly. The dedicated host proxy forwards LAN 80/443 to Traefik;
+Authelia protects the dashboard routes, while the API uses the SSH tunnel.
 
 ## Why These Choices
 
 | Decision | Reason | Cost |
 | --- | --- | --- |
-| Proxmox rather than nested local virtualization | Dedicated VM lifecycle, bridge networking, console, backups, API imports | One manual, potentially destructive host installation |
-| Full Desktop on all VMs | Meets the desktop requirement with inspectable virtual consoles | Larger memory, disk, update, and attack-surface budget than Server |
-| Cloud image plus Ansible | Checksummed base and repeatable package state without interactive installers | First desktop installation needs network access and time |
+| Native Ubuntu KVM/libvirt | Keeps the existing Desktop host and automates VM lifecycle | Host libvirt access is privileged |
+| Server guests | Smaller memory, disk, and attack surface; Desktop is only a host requirement | No guest graphical desktop |
+| Cloud image, cloud-init, Ansible | Checksummed base and repeatable bootstrap without interactive installers | First boot needs package/DNS access |
 | K3s rather than kubeadm | Bundled runtime, CNI, storage bootstrap, and lower operational overhead | K3s-specific configuration and upgrade procedures |
 | One server and three workers | Leaves three workload nodes and a simple recovery model | API outage on server restart; no control-plane HA |
 | Embedded etcd | Native scheduled snapshots and a documented restore path | One member is not redundant storage |
-| Proxmox VM firewall | Filters outside guest container networking | Requires the datacenter firewall enabled and verified |
-| Local-path storage | Small footprint and no pretend redundancy on one NVMe disk | A data-bearing VM cannot be replaced without data work |
+| Scoped nftables input firewall | Default-deny guest ingress without flushing CNI state | Forwarding and pod isolation need their own controls |
+| Protected data disks and retained local-path storage | Root replacement preserves application files | Node affinity remains; not replicated or protected against NVMe failure |
+| Traefik and Authelia | HTTPS plus default-deny MFA for dashboards | Internal CA trust and enrollment remain explicit |
+| Read-only Headlamp | Inspect Kubernetes with short-lived tokens | Mutating administrator UI access is not granted by default |
 | Vault and existing SSH keys | No credential generation or Kubernetes authentication in Terraform | Vault password and backups remain operator responsibilities |
 
 Three control-plane VMs on this same host would tolerate a guest failure, but not

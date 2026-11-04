@@ -2,10 +2,22 @@
 k3s_version: v1.37.1+k3s1
 k3s_binary_checksum: sha256:92b94582eb7b34a8cf532e6006842b9ed215a6783cf56a3dd6271fd35243b2c0
 kubeconfig_local_path: "{{ playbook_dir }}/../../.local/kubeconfig"
+kubeconfig_api_endpoint: https://127.0.0.1:16443
+lab_domain: pn51.192.168.1.20.sslip.io
+authelia_username: gus
+authelia_image: authelia/authelia:4.39.15
+headlamp_image: ghcr.io/headlamp-k8s/headlamp:v0.35.0
+homepage_image: ghcr.io/gethomepage/homepage:v2.7.0
+argocd_chart_version: 10.11.7
+argocd_chart_checksum: sha256:9f24a574ead97a1a68af447ab2678073c5e16a98ff9385aee766daf74361f04e
+argocd_chart_path: "{{ playbook_dir }}/../../.local/argo-cd-{{ argocd_chart_version }}.tgz"
+argocd_namespace: argocd
+argocd_application_namespace: fitness-tracker
+argocd_application_repository: https://github.com/TheNewThinkTank/homelab.git
 monitoring_chart_version: 92.9.0
 monitoring_chart_checksum: sha256:d99bc9dca70d8a2844e59ca18e589bfd69014b5c46d0be05ba8587932048b07f
 monitoring_chart_path: "{{ playbook_dir }}/../../.local/kube-prometheus-stack-{{ monitoring_chart_version }}.tgz"
 monitoring_namespace: monitoring
 monitoring_release_name: monitoring
-monitoring_storage_class: local-path
+monitoring_storage_class: homelab-retained
 grafana_admin_user: admin

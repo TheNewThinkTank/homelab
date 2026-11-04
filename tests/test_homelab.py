@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import io
 import json
 import os
 import re
@@ -8,8 +9,11 @@ import stat
 import subprocess
 from pathlib import Path
 
+import pycdlib
 import pytest
 import yaml
+from ansible.plugins.become.sudo import BecomeModule
+from cryptography import x509
 from ruamel.yaml.error import YAMLError
 
 from scripts import homelab
@@ -39,6 +43,49 @@ def test_yaml_root_must_be_an_object():
 
 def test_generated_inventory_contract(inventory):
     assert len(homelab.validate_inventory(inventory)) == 4
+
+
+def test_host_sudo_prompt_compatibility_is_scoped(inventory):
+    become = BecomeModule()
+    become.prompt = "[sudo via ansible, key=fixture] password:"
+    assert not become.check_password_prompt(f"[sudo: {become.prompt}] Password: ".encode())
+    assert become.check_password_prompt(become.prompt.encode())
+    source = ROOT / "pn51/ansible/host-inventory.yml"
+    host = yaml.safe_load(source.read_text())["all"]["children"]["pn51_host"]["hosts"]["pn51"]
+    assert host["ansible_become_exe"] == "/usr/bin/sudo.ws"
+    assert "ansible_become_exe" not in inventory["all"]["vars"]
+
+
+def test_ubuntu_host_selects_a_concrete_kvm_provider():
+    source = ROOT / "pn51/ansible/host.yml"
+    play = yaml.safe_load(source.read_text())[0]
+    installation = next(
+        task["ansible.builtin.apt"] for task in play["tasks"] if "ansible.builtin.apt" in task
+    )
+    assert "qemu-system-x86" in installation["name"]
+    assert "qemu-kvm" not in installation["name"]
+
+
+def test_host_storage_directory_is_private_to_qemu_and_administrators():
+    source = ROOT / "pn51/ansible/host.yml"
+    play = yaml.safe_load(source.read_text())[0]
+    directory = next(
+        task["ansible.builtin.file"]
+        for task in play["tasks"]
+        if task.get("ansible.builtin.file", {}).get("path") == "/var/lib/libvirt/homelab"
+    )
+    assert directory["owner"] == "libvirt-qemu"
+    assert directory["group"] == "libvirt"
+    assert int(directory["mode"], 8) == 0o750
+
+
+def test_guest_package_management_waits_for_security_updates():
+    source = ROOT / "pn51/ansible/roles/baseline/tasks/main.yml"
+    tasks = yaml.safe_load(source.read_text())
+    installation = next(
+        task["ansible.builtin.apt"] for task in tasks if "ansible.builtin.apt" in task
+    )
+    assert installation["lock_timeout"] == 600
 
 
 def test_protected_kernel_defaults_match_pinned_kubelet():
@@ -182,15 +229,19 @@ def test_ansible_dotfiles_configuration_converges_without_hiding_changes(tmp_pat
     assert (home / "config-ready").read_text() == "desired"
 
 
-@pytest.mark.parametrize("defect", ["missing-worker", "duplicate-ip", "duplicate-id", "wrong-user"])
+@pytest.mark.parametrize(
+    "defect", ["missing-worker", "duplicate-ip", "duplicate-mac", "wrong-user", "wrong-name"]
+)
 def test_invalid_inventory_is_rejected(inventory, defect):
     agents = inventory["all"]["children"]["k3s_cluster"]["children"]["k3s_agents"]["hosts"]
     if defect == "missing-worker":
         agents.pop("pn51-worker-3")
     elif defect == "duplicate-ip":
         agents["pn51-worker-2"]["ansible_host"] = agents["pn51-worker-1"]["ansible_host"]
-    elif defect == "duplicate-id":
-        agents["pn51-worker-2"]["proxmox_vm_id"] = agents["pn51-worker-1"]["proxmox_vm_id"]
+    elif defect == "duplicate-mac":
+        agents["pn51-worker-2"]["libvirt_mac"] = agents["pn51-worker-1"]["libvirt_mac"]
+    elif defect == "wrong-name":
+        agents["pn51-worker-2"]["libvirt_name"] = "unmanaged-vm"
     else:
         inventory["all"]["vars"]["ansible_user"] = "root"
     with pytest.raises(ValueError):
@@ -246,6 +297,10 @@ def test_vault_generation_never_writes_plaintext(tmp_path, monkeypatch, capsys):
     homelab.create_vault(target)
     assert re.fullmatch(r"[a-f0-9]{64}", observed["k3s_token"])
     assert len(observed["grafana_admin_password"]) >= 24
+    assert observed["authelia_password_hash"].startswith("$argon2id$")
+    assert homelab.PasswordHasher().verify(
+        observed["authelia_password_hash"], observed["authelia_password"]
+    )
     assert target.read_text().startswith("$ANSIBLE_VAULT;")
     assert stat.S_IMODE(target.stat().st_mode) == 0o600
     output = capsys.readouterr()
@@ -253,6 +308,58 @@ def test_vault_generation_never_writes_plaintext(tmp_path, monkeypatch, capsys):
     assert observed["grafana_admin_password"] not in output.out + output.err + target.read_text()
     with pytest.raises(ValueError, match="already exists"):
         homelab.create_vault(target)
+
+
+def test_internal_pki_is_private_and_idempotent(tmp_path, monkeypatch):
+    monkeypatch.setattr(homelab, "LOCAL", tmp_path)
+    homelab.create_pki("pn51.example.test")
+    source = tmp_path / "pki/tls.crt"
+    original = source.read_bytes()
+    certificate = x509.load_pem_x509_certificate(original)
+    names = certificate.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
+    assert "*.pn51.example.test" in names.get_values_for_type(x509.DNSName)
+    homelab.create_pki("pn51.example.test")
+    assert source.read_bytes() == original
+    assert stat.S_IMODE((tmp_path / "pki/ca.key").stat().st_mode) == 0o600
+    with pytest.raises(ValueError, match="another domain"):
+        homelab.create_pki("another.example.test")
+
+
+def test_cloudinit_iso_uses_real_joliet_seed_files(tmp_path):
+    for name in ("user-data", "meta-data", "network-config"):
+        (tmp_path / name).write_text(f"{name}\n")
+    target = tmp_path / "seed.iso"
+    subprocess.run(
+        [
+            homelab.sys.executable,
+            str(ROOT / "scripts/mkisofs"),
+            "-output",
+            str(target),
+            "-volid",
+            "cidata",
+            "-joliet",
+            "-rock",
+            *[str(tmp_path / name) for name in ("user-data", "meta-data", "network-config")],
+        ],
+        check=True,
+    )
+    image = pycdlib.PyCdlib()
+    image.open(str(target))
+    try:
+        output = io.BytesIO()
+        image.get_file_from_iso_fp(output, joliet_path="/network-config")
+        assert output.getvalue() == b"network-config\n"
+        for name, identifier in {
+            "user-data": "USER_DAT",
+            "meta-data": "META_DAT",
+            "network-config": "NETWORK_",
+        }.items():
+            primary = io.BytesIO()
+            image.get_file_from_iso_fp(primary, iso_path=f"/{identifier}.;1")
+            assert primary.getvalue() == f"{name}\n".encode()
+        assert image.pvd.volume_identifier.decode().strip() == "cidata"
+    finally:
+        image.close()
 
 
 def test_vault_encryption_failure_leaves_no_output(tmp_path, monkeypatch):
@@ -304,6 +411,10 @@ def test_local_volume_replacement_guard():
     }
     assert homelab.local_volumes_for_node([volume], "pn51-worker-1") == ["prometheus-data"]
     assert homelab.local_volumes_for_node([volume], "pn51-worker-2") == []
+    volume["spec"]["hostPath"]["path"] = "/srv/homelab-data/storage/prometheus"
+    assert homelab.local_volumes_for_node([volume], "pn51-worker-1") == []
+    volume["spec"]["hostPath"]["path"] = "/srv/homelab-data/storage/../../unprotected"
+    assert homelab.local_volumes_for_node([volume], "pn51-worker-1") == ["prometheus-data"]
     assert (
         homelab.local_volumes_for_node(
             [
@@ -319,16 +430,20 @@ def test_local_volume_replacement_guard():
 
 def test_replacement_plan_cannot_expand_scope():
     resource = {
-        "address": 'proxmox_virtual_environment_vm.node["pn51-worker-1"]',
+        "address": 'libvirt_domain.node["pn51-worker-1"]',
         "change": {"actions": ["delete", "create"]},
     }
-    homelab.validate_replacement_plan({"resource_changes": [resource]}, "pn51-worker-1")
+    disk = copy.deepcopy(resource)
+    disk["address"] = 'libvirt_volume.node["pn51-worker-1"]'
+    homelab.validate_replacement_plan({"resource_changes": [resource, disk]}, "pn51-worker-1")
     forbidden = copy.deepcopy(resource)
-    forbidden["address"] = 'proxmox_virtual_environment_vm.node["pn51-server-1"]'
+    forbidden["address"] = 'libvirt_domain.node["pn51-server-1"]'
     with pytest.raises(ValueError, match="outside"):
         homelab.validate_replacement_plan(
-            {"resource_changes": [resource, forbidden]}, "pn51-worker-1"
+            {"resource_changes": [resource, disk, forbidden]}, "pn51-worker-1"
         )
+    with pytest.raises(ValueError, match="root disk"):
+        homelab.validate_replacement_plan({"resource_changes": [resource]}, "pn51-worker-1")
     with pytest.raises(ValueError, match="explicit replacement"):
         homelab.validate_replacement_plan({"resource_changes": []}, "pn51-worker-1")
 
@@ -343,6 +458,50 @@ def test_control_plane_replacement_is_refused_before_any_command(inventory, tmp_
     monkeypatch.setattr(homelab, "execute", forbidden)
     with pytest.raises(ValueError, match="control-plane replacement"):
         homelab.replace_worker("pn51-server-1")
+
+
+def test_wrong_worker_confirmation_is_refused_before_any_command(inventory, tmp_path, monkeypatch):
+    (tmp_path / "inventory.json").write_text(json.dumps(inventory))
+    monkeypatch.setattr(homelab, "LOCAL", tmp_path)
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("Wrong confirmation must not execute a command")
+
+    monkeypatch.setattr(homelab, "execute", forbidden)
+    with pytest.raises(ValueError, match="exactly match"):
+        homelab.replace_worker("pn51-worker-2", confirmation="replace pn51-worker-1")
+
+
+def test_confirmed_worker_replacement_still_validates_scope(inventory, tmp_path, monkeypatch):
+    (tmp_path / "inventory.json").write_text(json.dumps(inventory))
+    monkeypatch.setattr(homelab, "LOCAL", tmp_path)
+    nodes = [
+        {
+            "metadata": {"name": name},
+            "status": {"conditions": [{"type": "Ready", "status": "True"}]},
+        }
+        for name in homelab.validate_inventory(inventory)
+    ]
+    forbidden_change = {
+        "address": 'libvirt_domain.node["pn51-server-1"]',
+        "change": {"actions": ["delete", "create"]},
+    }
+    responses = iter(
+        [
+            json.dumps({"items": nodes}),
+            json.dumps({"items": []}),
+            "",
+            json.dumps({"resource_changes": [forbidden_change]}),
+        ]
+    )
+
+    def execute(command, **kwargs):
+        assert "drain" not in command and "apply" not in command
+        return next(responses)
+
+    monkeypatch.setattr(homelab, "execute", execute)
+    with pytest.raises(ValueError, match="outside"):
+        homelab.replace_worker("pn51-worker-2", confirmation="replace pn51-worker-2")
 
 
 def test_ansible_does_not_override_inventory_networks(inventory, tmp_path):
@@ -373,6 +532,113 @@ def test_ansible_does_not_override_inventory_networks(inventory, tmp_path):
     resolved = json.loads(result.stdout)
     for key in ("k3s_pod_cidr", "k3s_service_cidr", "k3s_cluster_dns"):
         assert resolved[key] == inventory["all"]["vars"][key]
+
+
+@pytest.mark.parametrize("kind", ["Deployment", "StatefulSet", "DaemonSet"])
+def test_workload_readiness_rejects_zero_and_partial_replicas(kind):
+    item = {"kind": kind, "spec": {"replicas": 2}, "status": {}}
+    assert not homelab.workload_ready(item)
+    if kind == "DaemonSet":
+        item["status"] = {"desiredNumberScheduled": 2, "numberReady": 1}
+    else:
+        item["status"] = {"readyReplicas": 1}
+    assert not homelab.workload_ready(item)
+    if kind == "DaemonSet":
+        item["status"]["numberReady"] = 2
+    else:
+        item["status"]["readyReplicas"] = 2
+    assert homelab.workload_ready(item)
+
+
+@pytest.mark.parametrize(
+    "defect",
+    [
+        "anonymous-dashboard",
+        "missing-tls",
+        "root-pod",
+        "cluster-admin",
+        "persistent-token",
+        "bad-entrypoint",
+        "service-links",
+        "homepage-token",
+        "homepage-hosts",
+    ],
+)
+def test_platform_security_rejects_unsafe_declarations(defect):
+    source = homelab.LOCAL / "test-templates/platform-resources.yml"
+    if not source.exists():
+        pytest.skip("Run make platform-check to render the real platform manifest")
+    documents = homelab.parse_yaml_documents(source.read_text())
+    homelab.validate_platform(documents)
+    if defect in {"anonymous-dashboard", "missing-tls"}:
+        ingress = next(
+            item
+            for item in documents
+            if item["kind"] == "Ingress" and item["metadata"]["name"] == "grafana"
+        )
+        if defect == "anonymous-dashboard":
+            ingress["metadata"]["annotations"].pop(
+                "traefik.ingress.kubernetes.io/router.middlewares"
+            )
+        else:
+            ingress["spec"].pop("tls")
+    elif defect == "root-pod":
+        deployment = next(item for item in documents if item["kind"] == "Deployment")
+        deployment["spec"]["template"]["spec"]["securityContext"]["runAsNonRoot"] = False
+    elif defect == "cluster-admin":
+        binding = next(item for item in documents if item["kind"] == "ClusterRoleBinding")
+        binding["roleRef"]["name"] = "cluster-admin"
+    elif defect in {"bad-entrypoint", "service-links"}:
+        deployment = next(
+            item
+            for item in documents
+            if item["kind"] == "Deployment" and item["metadata"]["name"] == "authelia"
+        )
+        pod = deployment["spec"]["template"]["spec"]
+        if defect == "bad-entrypoint":
+            pod["containers"][0]["args"] = ["--config=/config/configuration.yml"]
+        else:
+            pod["enableServiceLinks"] = True
+    elif defect in {"homepage-token", "homepage-hosts"}:
+        deployment = next(
+            item
+            for item in documents
+            if item["kind"] == "Deployment" and item["metadata"]["name"] == "homepage"
+        )
+        pod = deployment["spec"]["template"]["spec"]
+        if defect == "homepage-token":
+            pod["automountServiceAccountToken"] = True
+        else:
+            pod["containers"][0]["env"] = [{"name": "HOMEPAGE_ALLOWED_HOSTS", "value": "*"}]
+    else:
+        documents.append(
+            {"apiVersion": "v1", "kind": "Secret", "type": "kubernetes.io/service-account-token"}
+        )
+    with pytest.raises(ValueError):
+        homelab.validate_platform(documents)
+
+
+@pytest.mark.parametrize(
+    "defect", ["default-open", "outside-repository", "outside-namespace", "cluster-resources"]
+)
+def test_argocd_project_scope_rejects_infrastructure_adoption(defect):
+    source = homelab.LOCAL / "test-templates/argocd-projects.yml"
+    if not source.exists():
+        pytest.skip("Run make argocd-chart-check to render the real project boundary")
+    projects = homelab.parse_yaml_documents(source.read_text())
+    settings = homelab.load_settings()
+    homelab.validate_argocd_projects(projects, settings)
+    by_name = {item["metadata"]["name"]: item["spec"] for item in projects}
+    if defect == "default-open":
+        by_name["default"]["sourceRepos"] = ["*"]
+    elif defect == "outside-repository":
+        by_name["homelab"]["sourceRepos"] = ["*"]
+    elif defect == "outside-namespace":
+        by_name["homelab"]["destinations"][0]["namespace"] = "kube-system"
+    else:
+        by_name["homelab"]["clusterResourceWhitelist"] = [{"group": "*", "kind": "*"}]
+    with pytest.raises(ValueError):
+        homelab.validate_argocd_projects(projects, settings)
 
 
 def test_public_files_exclude_private_artifacts():

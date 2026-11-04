@@ -1,18 +1,28 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import os
 import re
 import secrets
+import shlex
 import subprocess
 import sys
 import tempfile
+import time
+import xml.etree.ElementTree as ET
+from datetime import UTC, datetime, timedelta
 from ipaddress import IPv4Address
 from pathlib import Path
 from typing import Any
 
+from argon2 import PasswordHasher
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 from ruamel.yaml import YAML
 from ruamel.yaml.constructor import SafeConstructor
 from ruamel.yaml.error import YAMLError
@@ -104,11 +114,13 @@ def validate_inventory(inventory: dict[str, Any]) -> dict[str, dict[str, Any]]:
             )
         hosts = servers | agents
         addresses = [str(IPv4Address(host["ansible_host"])) for host in hosts.values()]
-        identifiers = [host["proxmox_vm_id"] for host in hosts.values()]
-        if len(set(addresses)) != 4 or len(set(identifiers)) != 4:
-            raise ValueError("VM addresses and IDs must be unique.")
-        if any(type(identifier) is not int or identifier < 100 for identifier in identifiers):
-            raise ValueError("Invalid Proxmox VM ID.")
+        macs = [host["libvirt_mac"] for host in hosts.values()]
+        if len(set(addresses)) != 4 or len(set(macs)) != 4:
+            raise ValueError("VM addresses and MACs must be unique.")
+        if any(host["libvirt_name"] != name for name, host in hosts.items()):
+            raise ValueError("Libvirt identities must match the generated node names.")
+        if any(not re.fullmatch(r"52:54:00:(?:[0-9a-f]{2}:){2}[0-9a-f]{2}", mac) for mac in macs):
+            raise ValueError("Invalid libvirt MAC address.")
         return hosts
     except (KeyError, TypeError, AttributeError) as error:
         raise ValueError("Invalid generated Ansible inventory structure.") from error
@@ -128,8 +140,17 @@ def create_vault(target: Path) -> None:
         raise ValueError(
             "The vault already exists; use ansible-vault edit instead of regenerating it."
         )
+    password = secrets.token_urlsafe(32)
     plaintext = json.dumps(
-        {"k3s_token": secrets.token_hex(32), "grafana_admin_password": secrets.token_urlsafe(32)}
+        {
+            "k3s_token": secrets.token_hex(32),
+            "grafana_admin_password": secrets.token_urlsafe(32),
+            "authelia_password": password,
+            "authelia_password_hash": PasswordHasher().hash(password),
+            "authelia_session_secret": secrets.token_hex(32),
+            "authelia_storage_key": secrets.token_hex(32),
+            "authelia_jwt_secret": secrets.token_hex(32),
+        }
     )
     ciphertext = execute(
         ["ansible-vault", "encrypt", "--output", "-"], capture=True, stdin=plaintext
@@ -138,6 +159,262 @@ def create_vault(target: Path) -> None:
         raise ValueError("Vault encryption did not produce an Ansible Vault document.")
     private_write(target, ciphertext, overwrite=False)
     print("Created encrypted .local/vault.yml; plaintext credentials were never written to disk.")
+
+
+def create_pki(domain: str) -> None:
+    if not re.fullmatch(r"[a-z0-9]+(?:[.-][a-z0-9]+)+", domain):
+        raise ValueError("Use an ASCII DNS domain for internal TLS.")
+    directory = LOCAL / "pki"
+    certificate_path = directory / "tls.crt"
+    if certificate_path.exists():
+        certificate = x509.load_pem_x509_certificate(certificate_path.read_bytes())
+        names = certificate.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
+        if f"*.{domain}" not in names.get_values_for_type(x509.DNSName):
+            raise ValueError(
+                "Existing TLS certificate belongs to another domain; rotate deliberately."
+            )
+        if certificate.not_valid_after_utc <= datetime.now(UTC) + timedelta(days=30):
+            raise ValueError(
+                "Internal TLS certificate expires within 30 days; rotate it deliberately."
+            )
+        if not all((directory / name).is_file() for name in ("ca.crt", "ca.key", "tls.key")):
+            raise ValueError("Existing PKI is incomplete; restore its original private files.")
+        return
+    if directory.exists() and any(directory.iterdir()):
+        raise ValueError("Refusing to overwrite an incomplete existing PKI.")
+    now = datetime.now(UTC)
+    ca_key = rsa.generate_private_key(public_exponent=65537, key_size=3072)
+    ca_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "PN51 Homelab CA")])
+    ca = (
+        x509.CertificateBuilder()
+        .subject_name(ca_name)
+        .issuer_name(ca_name)
+        .public_key(ca_key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now - timedelta(minutes=5))
+        .not_valid_after(now + timedelta(days=3650))
+        .add_extension(x509.BasicConstraints(ca=True, path_length=0), critical=True)
+        .sign(ca_key, hashes.SHA256())
+    )
+    tls_key = rsa.generate_private_key(public_exponent=65537, key_size=3072)
+    certificate = (
+        x509.CertificateBuilder()
+        .subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, f"*.{domain}")]))
+        .issuer_name(ca_name)
+        .public_key(tls_key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now - timedelta(minutes=5))
+        .not_valid_after(now + timedelta(days=365))
+        .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
+        .add_extension(
+            x509.SubjectAlternativeName([x509.DNSName(domain), x509.DNSName(f"*.{domain}")]),
+            critical=False,
+        )
+        .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)
+        .sign(ca_key, hashes.SHA256())
+    )
+    for name, key in (("ca.key", ca_key), ("tls.key", tls_key)):
+        private_write(
+            directory / name,
+            key.private_bytes(
+                serialization.Encoding.PEM,
+                serialization.PrivateFormat.PKCS8,
+                serialization.NoEncryption(),
+            ).decode(),
+            overwrite=False,
+        )
+    for name, item in (("ca.crt", ca), ("tls.crt", certificate)):
+        private_write(
+            directory / name,
+            item.public_bytes(serialization.Encoding.PEM).decode(),
+            overwrite=False,
+        )
+
+
+def initialize_local(public_key: Path | None = None) -> None:
+    if public_key is None:
+        config = execute(["ssh", "-G", "pn51"], capture=True)
+        identities = [
+            line.split(maxsplit=1)[1]
+            for line in config.splitlines()
+            if line.startswith("identityfile ")
+        ]
+        public_key = next(
+            (
+                Path(f"{identity}.pub").expanduser()
+                for identity in identities
+                if Path(f"{identity}.pub").expanduser().is_file()
+            ),
+            None,
+        )
+    if public_key is None or public_key.suffix != ".pub":
+        raise ValueError(
+            "Provide the existing PN51 SSH public key with --public-key; never a private key."
+        )
+    key = public_key.read_text().strip()
+    if not re.fullmatch(
+        r"(?:ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp[0-9]+) [A-Za-z0-9+/=]+(?: .*)?", key
+    ):
+        raise ValueError("Invalid OpenSSH public key.")
+    inputs = LOCAL / "terraform.tfvars.json"
+    if not inputs.exists():
+        private_write(
+            inputs, json.dumps({"ssh_public_keys": [key]}, indent=2) + "\n", overwrite=False
+        )
+    password_file = LOCAL / "vault-password"
+    if not password_file.exists():
+        if (LOCAL / "vault.yml").exists():
+            raise ValueError(
+                "Existing vault needs its original password, not a newly generated one."
+            )
+        private_write(password_file, secrets.token_urlsafe(48) + "\n", overwrite=False)
+    if not (LOCAL / "vault.yml").exists():
+        previous = os.environ.get("ANSIBLE_VAULT_PASSWORD_FILE")
+        os.environ["ANSIBLE_VAULT_PASSWORD_FILE"] = str(password_file)
+        try:
+            create_vault(LOCAL / "vault.yml")
+        finally:
+            if previous is None:
+                os.environ.pop("ANSIBLE_VAULT_PASSWORD_FILE", None)
+            else:
+                os.environ["ANSIBLE_VAULT_PASSWORD_FILE"] = previous
+    create_pki(load_settings()["lab_domain"])
+    print("Private Terraform inputs, encrypted vault, vault password, and internal PKI are ready.")
+
+
+def download_image() -> None:
+    manifest = json.loads((ROOT / "pn51/terraform/image.json").read_text())
+    directory = LOCAL / "images"
+    if directory.is_symlink() or LOCAL.is_symlink():
+        raise ValueError("Refusing to download through a symlink.")
+    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+    target = directory / manifest["name"]
+    if target.is_symlink():
+        raise ValueError("Refusing to replace a linked image.")
+    if target.exists():
+        with target.open("rb") as stream:
+            digest = hashlib.file_digest(stream, "sha256").hexdigest()
+        if digest != manifest["sha256"]:
+            raise ValueError("Existing Ubuntu image checksum mismatch; inspect it before retrying.")
+        print("Pinned Ubuntu image is already present and verified.")
+        return
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=directory, delete=False) as output:
+            temporary = Path(output.name)
+        execute(
+            [
+                "/usr/bin/curl",
+                "--disable",
+                "--fail",
+                "--silent",
+                "--show-error",
+                "--location",
+                "--proto",
+                "=https",
+                "--proto-redir",
+                "=https",
+                "--connect-timeout",
+                "30",
+                "--max-time",
+                "900",
+                "--output",
+                str(temporary),
+                manifest["url"],
+            ]
+        )
+        with temporary.open("rb") as stream:
+            digest = hashlib.file_digest(stream, "sha256").hexdigest()
+        if digest != manifest["sha256"]:
+            raise ValueError("Downloaded Ubuntu image checksum mismatch; no image was installed.")
+        temporary.chmod(0o600)
+        os.replace(temporary, target)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+    print("Downloaded and SHA-256-verified the pinned Ubuntu server image.")
+
+
+def remote_virsh(alias: str, arguments: list[str]) -> str:
+    if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.-]*", alias):
+        raise ValueError("Invalid PN51 SSH alias.")
+    return execute(
+        [
+            "ssh",
+            "-T",
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "StrictHostKeyChecking=yes",
+            "-o",
+            "UpdateHostKeys=no",
+            "-o",
+            "ControlPath=none",
+            alias,
+            shlex.join(["virsh", "--connect", "qemu:///system", *arguments]),
+        ],
+        capture=True,
+    )
+
+
+def trust_guest_keys() -> None:
+    inventory = json.loads((LOCAL / "inventory.json").read_text())
+    hosts = validate_inventory(inventory)
+    alias = inventory["all"]["vars"]["pn51_host_ssh_alias"]
+    lines = []
+    for name, host in sorted(hosts.items()):
+        domain = ET.fromstring(remote_virsh(alias, ["dumpxml", name]))
+        interfaces = domain.findall("./devices/interface")
+        if not any(
+            interface.find("mac") is not None
+            and interface.find("mac").get("address") == host["libvirt_mac"]
+            for interface in interfaces
+        ):
+            raise ValueError(f"VM {name} does not have the Terraform-declared MAC.")
+        deadline = time.monotonic() + 900
+        request = json.dumps(
+            {
+                "execute": "guest-exec",
+                "arguments": {
+                    "path": "/usr/bin/cat",
+                    "arg": ["/etc/ssh/ssh_host_ed25519_key.pub"],
+                    "capture-output": True,
+                },
+            }
+        )
+        while True:
+            try:
+                result = json.loads(remote_virsh(alias, ["qemu-agent-command", name, request]))
+                pid = result["return"]["pid"]
+                break
+            except subprocess.CalledProcessError:
+                if time.monotonic() >= deadline:
+                    raise ValueError(f"Guest agent did not become ready on {name}.") from None
+                time.sleep(5)
+        while True:
+            result = json.loads(
+                remote_virsh(
+                    alias,
+                    [
+                        "qemu-agent-command",
+                        name,
+                        json.dumps({"execute": "guest-exec-status", "arguments": {"pid": pid}}),
+                    ],
+                )
+            )["return"]
+            if result.get("exited"):
+                break
+            if time.monotonic() >= deadline:
+                raise ValueError(f"Guest key retrieval timed out on {name}.")
+            time.sleep(1)
+        if result.get("exitcode") != 0:
+            raise ValueError(f"Guest SSH key was not available on {name}.")
+        key = base64.b64decode(result["out-data"], validate=True).decode().strip()
+        if not re.fullmatch(r"ssh-ed25519 [A-Za-z0-9+/=]+(?: .*)?", key):
+            raise ValueError(f"Invalid guest SSH public key on {name}.")
+        lines.append(f"{host['ansible_host']},{name} {key}")
+    private_write(LOCAL / "known_hosts", "\n".join(lines) + "\n")
+    print("Verified all four guest SSH keys through the authenticated PN51 libvirt connection.")
 
 
 def validate_idempotence(report: dict[str, Any], expected_hosts: set[str] | None = None) -> None:
@@ -206,6 +483,92 @@ def validate_monitoring(documents: list[dict[str, Any]]) -> None:
         raise ValueError("Grafana must reference the separately managed administrator Secret.")
 
 
+def validate_platform(documents: list[dict[str, Any]]) -> None:
+    ingresses = [item for item in documents if item.get("kind") == "Ingress"]
+    if {item["metadata"]["name"] for item in ingresses} != {
+        "auth",
+        "headlamp",
+        "grafana",
+        "prometheus",
+        "alertmanager",
+        "homepage",
+        "argocd",
+    }:
+        raise ValueError("Expected exactly seven secured platform routes.")
+    for item in ingresses:
+        if not item["spec"].get("tls") or item["spec"].get("ingressClassName") != "traefik":
+            raise ValueError("Every platform ingress must use TLS and Traefik.")
+        annotations = item["metadata"].get("annotations", {})
+        middleware = annotations.get("traefik.ingress.kubernetes.io/router.middlewares", "")
+        if item["metadata"]["name"] != "auth" and "-authelia@kubernetescrd" not in middleware:
+            raise ValueError("Every dashboard must require Authelia authentication.")
+    deployments = [item for item in documents if item.get("kind") == "Deployment"]
+    if {item["metadata"]["name"] for item in deployments} != {"authelia", "headlamp", "homepage"}:
+        raise ValueError("Expected Authelia, Headlamp, and Homepage deployments.")
+    for item in deployments:
+        pod = item["spec"]["template"]["spec"]
+        if pod.get("enableServiceLinks", True):
+            raise ValueError("Platform service-link environment injection must be disabled.")
+        if item["metadata"]["name"] == "homepage":
+            if pod.get("automountServiceAccountToken", True):
+                raise ValueError("Homepage must not receive Kubernetes credentials.")
+            environment = {
+                entry["name"]: entry.get("value") for entry in pod["containers"][0].get("env", [])
+            }
+            route = next(route for route in ingresses if route["metadata"]["name"] == "homepage")
+            if environment.get("HOMEPAGE_ALLOWED_HOSTS") != route["spec"]["rules"][0]["host"]:
+                raise ValueError("Homepage must accept only its declared ingress hostname.")
+        if not pod.get("securityContext", {}).get("runAsNonRoot"):
+            raise ValueError("Platform containers must run without root.")
+        for container in pod["containers"]:
+            if container["name"] == "authelia" and container.get("args", [])[:1] != ["authelia"]:
+                raise ValueError("Authelia's image entrypoint requires the executable in its args.")
+            security = container.get("securityContext", {})
+            if (
+                security.get("allowPrivilegeEscalation", True)
+                or not security.get("readOnlyRootFilesystem")
+                or security.get("capabilities", {}).get("drop") != ["ALL"]
+            ):
+                raise ValueError("Platform containers require restricted security contexts.")
+            if (
+                ":latest" in container["image"]
+                or "@sha256:" not in container["image"]
+                and ":" not in container["image"]
+            ):
+                raise ValueError("Platform images must be explicitly version-pinned.")
+    for item in documents:
+        if item.get("kind") == "ClusterRoleBinding" and item["roleRef"]["name"] == "cluster-admin":
+            raise ValueError("Headlamp must not receive cluster-admin by default.")
+        if (
+            item.get("kind") == "Secret"
+            and item.get("type") == "kubernetes.io/service-account-token"
+        ):
+            raise ValueError("Do not issue persistent Headlamp bearer tokens.")
+        if item.get("kind") == "Service" and item["spec"].get("type", "ClusterIP") != "ClusterIP":
+            raise ValueError("Platform services must stay private behind ingress.")
+    if len([item for item in documents if item.get("kind") == "NetworkPolicy"]) < 2:
+        raise ValueError("Platform and monitoring need explicit network policies.")
+
+
+def check_platform_templates() -> None:
+    directory = LOCAL / "test-templates"
+    documents = parse_yaml_documents((directory / "platform-resources.yml").read_text())
+    validate_platform(documents)
+    fixture = parse_yaml_documents((directory / "authelia-fixture.yml").read_text())[0]
+    configuration = parse_yaml_documents(fixture["stringData"]["configuration.yml"])[0]
+    if not configuration["server"].get("disable_healthcheck"):
+        raise ValueError("Read-only Authelia pods must not generate Docker healthcheck metadata.")
+    control = configuration["access_control"]
+    if control["default_policy"] != "deny" or any(
+        rule["policy"] != "two_factor" for rule in control["rules"]
+    ):
+        raise ValueError("Authelia must default-deny and require two-factor authentication.")
+    print(
+        f"Validated {len(documents)} platform resources, MFA protection, "
+        "restricted pods, and read-only RBAC."
+    )
+
+
 def check_chart() -> None:
     settings = load_settings()
     version = settings["monitoring_chart_version"]
@@ -268,6 +631,141 @@ def check_chart() -> None:
     print(f"Validated {len(documents)} rendered resources, 10 CRDs, and the pinned chart checksum.")
 
 
+def validate_argocd(documents: list[dict[str, Any]]) -> None:
+    crds = {
+        item["metadata"]["name"]
+        for item in documents
+        if item.get("kind") == "CustomResourceDefinition"
+    }
+    if crds != {
+        "applications.argoproj.io",
+        "applicationsets.argoproj.io",
+        "appprojects.argoproj.io",
+    }:
+        raise ValueError("The pinned Argo CD chart must declare its three reviewed CRDs.")
+    for item in documents:
+        if item.get("kind") == "Service" and item["spec"].get("type", "ClusterIP") != "ClusterIP":
+            raise ValueError("Argo CD services must remain private ClusterIP services.")
+        if item.get("kind") == "Ingress":
+            raise ValueError("Argo CD ingress is owned by the secured platform, not the chart.")
+        if item.get("kind") == "NetworkPolicy" and item["metadata"]["name"] == "argocd-server":
+            raise ValueError("Do not install the chart unrestricted Argo server ingress policy.")
+    configmaps = {
+        item["metadata"]["name"]: item.get("data", {})
+        for item in documents
+        if item.get("kind") == "ConfigMap"
+    }
+    if str(configmaps["argocd-cm"].get("users.anonymous.enabled")).lower() != "false":
+        raise ValueError("Anonymous Argo CD access must stay disabled.")
+    if configmaps["argocd-rbac-cm"].get("policy.default") != "role:readonly":
+        raise ValueError("Default Argo CD user permissions must be read-only.")
+    workloads = [item for item in documents if item.get("kind") in {"Deployment", "StatefulSet"}]
+    expected = {
+        "argocd-server",
+        "argocd-repo-server",
+        "argocd-redis",
+        "argocd-application-controller",
+    }
+    if not expected.issubset({item["metadata"]["name"] for item in workloads}):
+        raise ValueError(
+            "Expected the Argo CD server, repository, cache, and controller workloads."
+        )
+    for item in workloads:
+        pod = item["spec"]["template"]["spec"]
+        for container in pod["containers"]:
+            security = container.get("securityContext", {})
+            if security.get("allowPrivilegeEscalation", True) or not security.get(
+                "readOnlyRootFilesystem"
+            ):
+                raise ValueError("Argo CD workloads need restricted container security contexts.")
+            if not security.get("runAsNonRoot", pod.get("securityContext", {}).get("runAsNonRoot")):
+                raise ValueError("Argo CD workloads must run without root.")
+
+
+def check_argocd_chart() -> None:
+    settings = load_settings()
+    version = settings["argocd_chart_version"]
+    archive = LOCAL / f"argo-cd-{version}.tgz"
+    LOCAL.mkdir(mode=0o700, exist_ok=True)
+    if not archive.exists():
+        execute(
+            [
+                "helm",
+                "pull",
+                "argo-cd",
+                "--repo",
+                "https://argoproj.github.io/argo-helm",
+                "--version",
+                version,
+                "--destination",
+                str(LOCAL),
+            ]
+        )
+    expected = settings["argocd_chart_checksum"].removeprefix("sha256:")
+    if hashlib.sha256(archive.read_bytes()).hexdigest() != expected:
+        raise ValueError("Argo CD chart checksum mismatch; inspect the archive before retrying.")
+    values = ROOT / "pn51/gitops/values.yml"
+    kubernetes_version = settings["k3s_version"].removeprefix("v").split("+")[0]
+    execute(
+        [
+            "helm",
+            "lint",
+            str(archive),
+            "--strict",
+            "--kube-version",
+            kubernetes_version,
+            "--values",
+            str(values),
+        ]
+    )
+    rendered = execute(
+        [
+            "helm",
+            "template",
+            "argocd",
+            str(archive),
+            "--namespace",
+            settings["argocd_namespace"],
+            "--kube-version",
+            kubernetes_version,
+            "--values",
+            str(values),
+            "--include-crds",
+        ],
+        capture=True,
+    )
+    documents = parse_yaml_documents(rendered)
+    validate_argocd(documents)
+    projects = parse_yaml_documents((LOCAL / "test-templates/argocd-projects.yml").read_text())
+    validate_argocd_projects(projects, settings)
+    print(
+        f"Validated {len(documents)} pinned Argo CD resources, private access, "
+        "and application-only project scope."
+    )
+
+
+def validate_argocd_projects(projects: list[dict[str, Any]], settings: dict[str, Any]) -> None:
+    by_name = {item["metadata"]["name"]: item["spec"] for item in projects}
+    if by_name["default"].get("sourceRepos") or by_name["default"].get("destinations"):
+        raise ValueError(
+            "The default Argo CD project must not permit arbitrary repositories or destinations."
+        )
+    project = by_name["homelab"]
+    if project["sourceRepos"] != [settings["argocd_application_repository"]] or project[
+        "destinations"
+    ] != [
+        {
+            "server": "https://kubernetes.default.svc",
+            "namespace": settings["argocd_application_namespace"],
+        }
+    ]:
+        raise ValueError(
+            "Scope the homelab project to the reviewed repository and application namespace."
+        )
+    if project.get("clusterResourceWhitelist"):
+        raise ValueError("Application GitOps must not manage cluster-scoped infrastructure.")
+
+
 def local_volumes_for_node(volumes: list[dict[str, Any]], node: str) -> list[str]:
     blockers = []
     for volume in volumes:
@@ -289,20 +787,24 @@ def local_volumes_for_node(volumes: list[dict[str, Any]], node: str) -> list[str
         uncertain_local = (
             "hostPath" in specification or "local" in specification
         ) and not selectors
-        if attached or uncertain_local:
+        data_path = specification.get("hostPath", specification.get("local", {})).get("path", "")
+        retained_data = os.path.normpath(data_path).startswith("/srv/homelab-data/storage/")
+        if (attached or uncertain_local) and not (attached and retained_data):
             blockers.append(volume["metadata"]["name"])
     return blockers
 
 
 def validate_replacement_plan(plan: dict[str, Any], node: str) -> None:
     suffix = f"[{json.dumps(node)}]"
-    target = "proxmox_virtual_environment_vm.node" + suffix
+    target = "libvirt_domain.node" + suffix
+    disk = "libvirt_volume.node" + suffix
     allowed = {
         target,
-        "proxmox_virtual_environment_firewall_rules.node" + suffix,
-        "proxmox_virtual_environment_firewall_options.node" + suffix,
+        disk,
+        "libvirt_cloudinit_disk.node" + suffix,
     }
     replacement = False
+    disk_replacement = False
     for resource in plan.get("resource_changes", []):
         actions = resource["change"]["actions"]
         if actions in (["no-op"], ["read"]):
@@ -313,8 +815,12 @@ def validate_replacement_plan(plan: dict[str, Any], node: str) -> None:
             )
         if resource["address"] == target:
             replacement = sorted(actions) == ["create", "delete"]
-    if not replacement:
-        raise ValueError("Expected an explicit replacement of exactly the selected worker VM.")
+        if resource["address"] == disk:
+            disk_replacement = sorted(actions) == ["create", "delete"]
+    if not replacement or not disk_replacement:
+        raise ValueError(
+            "Expected an explicit replacement of the selected worker VM and root disk."
+        )
 
 
 def node_ready(node: dict[str, Any]) -> bool:
@@ -324,7 +830,7 @@ def node_ready(node: dict[str, Any]) -> bool:
     )
 
 
-def replace_worker(node: str) -> None:
+def replace_worker(node: str, confirmation: str | None = None) -> None:
     inventory = json.loads((LOCAL / "inventory.json").read_text(encoding="utf-8"))
     hosts = validate_inventory(inventory)
     groups = inventory["all"]["children"]["k3s_cluster"]["children"]
@@ -333,6 +839,9 @@ def replace_worker(node: str) -> None:
             "Only a generated worker name may be replaced; "
             "control-plane replacement needs a restore."
         )
+    expected_confirmation = f"replace {node}"
+    if confirmation is not None and confirmation.strip() != expected_confirmation:
+        raise ValueError("Replacement confirmation must exactly match the selected worker.")
     kubectl = ["kubectl", "--kubeconfig", str(LOCAL / "kubeconfig")]
     nodes = json.loads(execute([*kubectl, "get", "nodes", "-o", "json"], capture=True))["items"]
     healthy = {item["metadata"]["name"] for item in nodes if node_ready(item)}
@@ -346,15 +855,31 @@ def replace_worker(node: str) -> None:
             f"Migrate or back up node-local volumes before replacement: {', '.join(blockers)}"
         )
     plan_path = LOCAL / f"replace-{node}.tfplan"
-    target = f"proxmox_virtual_environment_vm.node[{json.dumps(node)}]"
-    execute([*TERRAFORM, "plan", "-input=false", f"-replace={target}", f"-out={plan_path}"])
+    target = f"libvirt_domain.node[{json.dumps(node)}]"
+    disk = f"libvirt_volume.node[{json.dumps(node)}]"
+    execute(
+        [
+            *TERRAFORM,
+            "plan",
+            "-input=false",
+            f"-var-file={LOCAL / 'terraform.tfvars.json'}",
+            f"-replace={target}",
+            f"-replace={disk}",
+            f"-out={plan_path}",
+        ]
+    )
     plan = json.loads(execute([*TERRAFORM, "show", "-json", str(plan_path)], capture=True))
     validate_replacement_plan(plan, node)
     print(
         "This destroys the selected worker's root disk and emptyDir data. "
         "No other VM is allowed to change."
     )
-    if input(f"Type 'replace {node}' to continue: ").strip() != f"replace {node}":
+    answer = (
+        confirmation
+        if confirmation is not None
+        else input(f"Type '{expected_confirmation}' to continue: ")
+    )
+    if answer.strip() != expected_confirmation:
         raise ValueError("Replacement cancelled before draining or applying.")
     node_deleted = False
     try:
@@ -403,8 +928,18 @@ def replace_worker(node: str) -> None:
             subprocess.run([*kubectl, "uncordon", node], check=False)
     generate_inventory()
     print(
-        "Verify the new SSH host fingerprint through the Proxmox console, then run make configure."
+        "Run make trust-guest-keys to verify the new SSH key through libvirt, then make configure."
     )
+
+
+def workload_ready(item: dict[str, Any]) -> bool:
+    if item["kind"] == "DaemonSet":
+        desired = item.get("status", {}).get("desiredNumberScheduled", 0)
+        ready = item.get("status", {}).get("numberReady", 0)
+    else:
+        desired = item["spec"].get("replicas", 1)
+        ready = item.get("status", {}).get("readyReplicas", 0)
+    return desired >= 1 and ready >= desired
 
 
 def verify_live() -> None:
@@ -441,13 +976,7 @@ def verify_live() -> None:
             "Expected Grafana, Prometheus, Alertmanager, operator, and metrics exporters."
         )
     for item in workloads:
-        if item["kind"] == "DaemonSet":
-            desired = item.get("status", {}).get("desiredNumberScheduled", 0)
-            ready = item.get("status", {}).get("numberReady", 0)
-        else:
-            desired = item["spec"].get("replicas", 1)
-            ready = item.get("status", {}).get("readyReplicas", 0)
-        if desired < 1 or ready < desired:
+        if not workload_ready(item):
             raise ValueError(f"Monitoring workload is not ready: {item['metadata']['name']}")
     claims = json.loads(
         execute(
@@ -492,6 +1021,87 @@ def verify_live() -> None:
     )["data"]["activeTargets"]
     if not targets or any(target.get("health") != "up" for target in targets):
         raise ValueError("Prometheus scrape targets are absent or unhealthy; inspect /targets.")
+    platform = json.loads(
+        execute([*kubectl, "-n", "platform", "get", "deployment", "-o", "json"], capture=True)
+    )["items"]
+    if {item["metadata"]["name"] for item in platform} != {
+        "authelia",
+        "headlamp",
+        "homepage",
+    } or not all(workload_ready(item) for item in platform):
+        raise ValueError("Authelia, Headlamp, and Homepage must all be available.")
+    argocd_namespace = settings["argocd_namespace"]
+    gitops = json.loads(
+        execute(
+            [*kubectl, "-n", argocd_namespace, "get", "deployment,statefulset", "-o", "json"],
+            capture=True,
+        )
+    )["items"]
+    required_gitops = {
+        "argocd-server",
+        "argocd-repo-server",
+        "argocd-redis",
+        "argocd-application-controller",
+    }
+    if not required_gitops.issubset({item["metadata"]["name"] for item in gitops}) or not all(
+        workload_ready(item) for item in gitops
+    ):
+        raise ValueError(
+            "All declared Argo CD controllers, server, repository, and cache must be ready."
+        )
+    projects = json.loads(
+        execute([*kubectl, "-n", argocd_namespace, "get", "appproject", "-o", "json"], capture=True)
+    )["items"]
+    validate_argocd_projects(projects, settings)
+    argocd_health = execute(
+        [
+            *kubectl,
+            "get",
+            "--raw",
+            f"/api/v1/namespaces/{argocd_namespace}/services/http:argocd-server:80/proxy/healthz",
+        ],
+        capture=True,
+    )
+    if argocd_health.strip().lower() != "ok":
+        raise ValueError("Argo CD server health check failed.")
+    platform_claims = json.loads(
+        execute([*kubectl, "-n", "platform", "get", "pvc", "-o", "json"], capture=True)
+    )["items"]
+    if not platform_claims or any(
+        item.get("status", {}).get("phase") != "Bound" for item in platform_claims
+    ):
+        raise ValueError("Authelia persistent storage must be Bound.")
+    volumes = json.loads(execute([*kubectl, "get", "pv", "-o", "json"], capture=True))["items"]
+    bound_names = {item["spec"]["volumeName"] for item in claims + platform_claims}
+    for item in volumes:
+        if item["metadata"]["name"] not in bound_names:
+            continue
+        specification = item["spec"]
+        data_path = os.path.normpath(specification.get("hostPath", {}).get("path", ""))
+        if specification.get(
+            "persistentVolumeReclaimPolicy"
+        ) != "Retain" or not data_path.startswith("/srv/homelab-data/storage/"):
+            raise ValueError("Application volumes must be retained on the protected data disks.")
+    system = json.loads(
+        execute([*kubectl, "-n", "kube-system", "get", "deployment", "-o", "json"], capture=True)
+    )["items"]
+    essential = {"traefik", "coredns", "metrics-server", "local-path-provisioner"}
+    ready_system = {item["metadata"]["name"] for item in system if workload_ready(item)}
+    if not essential.issubset(ready_system):
+        raise ValueError("Traefik, DNS, metrics, and storage provisioner must be available.")
+    authelia = json.loads(
+        execute(
+            [
+                *kubectl,
+                "get",
+                "--raw",
+                "/api/v1/namespaces/platform/services/http:authelia:9091/proxy/api/health",
+            ],
+            capture=True,
+        )
+    )
+    if authelia.get("status") != "OK":
+        raise ValueError("Authelia health check failed.")
     execute(
         [
             "helm",
@@ -507,7 +1117,8 @@ def verify_live() -> None:
     )
     print(
         "Live checks passed: four Ready nodes, pinned K3s, monitoring workloads, "
-        "PVCs, health, and scrape targets."
+        "retained PVCs, healthy scrape targets, Authelia, Headlamp, Homepage, "
+        "scoped Argo CD, DNS, ingress, and metrics."
     )
 
 
@@ -519,13 +1130,28 @@ def main() -> int:
     crds_parser.add_argument("chart", type=str)
     crds_parser.add_argument("--version")
     commands.add_parser("inventory", help="Generate a validated, private inventory from Terraform")
+    initialize = commands.add_parser(
+        "init-local", help="Prepare private inputs, encrypted credentials, and PKI"
+    )
+    initialize.add_argument("--public-key", type=Path)
+    commands.add_parser("image", help="Download and verify the pinned Ubuntu cloud image")
+    commands.add_parser(
+        "trust-guest-keys", help="Verify guest SSH keys using the trusted libvirt host"
+    )
     commands.add_parser("vault", help="Create encrypted credentials without a plaintext file")
     commands.add_parser("chart-check", help="Verify, lint, and render the pinned monitoring chart")
+    commands.add_parser(
+        "argocd-chart-check", help="Validate the pinned Argo CD chart and project boundary"
+    )
+    commands.add_parser("platform-check", help="Validate rendered platform security contracts")
     commands.add_parser("verify", help="Run live cluster and monitoring acceptance checks")
     replacement = commands.add_parser(
         "replace-worker", help="Plan and explicitly confirm a worker replacement"
     )
     replacement.add_argument("--node", required=True)
+    replacement.add_argument(
+        "--confirm", help="Exact 'replace NODE' confirmation for approved automation"
+    )
     idempotence = commands.add_parser(
         "idempotence-check", help="Check second-run Ansible JSON statistics"
     )
@@ -536,14 +1162,24 @@ def main() -> int:
             print(json.dumps(chart_crds(arguments.chart, arguments.version)))
         elif arguments.command == "inventory":
             generate_inventory()
+        elif arguments.command == "init-local":
+            initialize_local(arguments.public_key)
+        elif arguments.command == "image":
+            download_image()
+        elif arguments.command == "trust-guest-keys":
+            trust_guest_keys()
         elif arguments.command == "vault":
             create_vault(LOCAL / "vault.yml")
         elif arguments.command == "chart-check":
             check_chart()
+        elif arguments.command == "argocd-chart-check":
+            check_argocd_chart()
+        elif arguments.command == "platform-check":
+            check_platform_templates()
         elif arguments.command == "verify":
             verify_live()
         elif arguments.command == "replace-worker":
-            replace_worker(arguments.node)
+            replace_worker(arguments.node, confirmation=arguments.confirm)
         elif arguments.command == "idempotence-check":
             inventory = json.loads((LOCAL / "inventory.json").read_text(encoding="utf-8"))
             report = json.loads(arguments.report.read_text(encoding="utf-8"))

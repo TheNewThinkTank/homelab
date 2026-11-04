@@ -18,13 +18,12 @@
       - ansible_facts['distribution_version'] == '26.04'
       - ansible_facts['architecture'] == 'x86_64'
       - ansible_facts['virtualization_role'] == 'guest'
-      - ansible_facts['memtotal_mb'] >= 5600
-    fail_msg: This playbook targets the Terraform-managed Ubuntu 26.04 desktop VMs only.
+      - ansible_facts['memtotal_mb'] >= 3500
+    fail_msg: This playbook targets the Terraform-managed Ubuntu 26.04 server VMs only.
 
-- name: Install the full Ubuntu Desktop and the guest baseline
+- name: Install the server guest baseline
   ansible.builtin.apt:
     name:
-      - ubuntu-desktop
       - qemu-guest-agent
       - openssh-server
       - ca-certificates
@@ -32,13 +31,15 @@
       - python3-apt
       - unattended-upgrades
       - apparmor
+      - nftables
     state: present
     update_cache: true
     cache_valid_time: 3600
+    lock_timeout: 600
   environment:
     DEBIAN_FRONTEND: noninteractive
 
-- name: Start the guest agent on the Proxmox-provided virtio channel
+- name: Start the guest agent on the libvirt virtio channel
   ansible.builtin.systemd_service:
     name: qemu-guest-agent
     state: started
@@ -131,7 +132,7 @@
     regexp: "^(\\s*[^#\\s]+\\s+\\S+\\s+swap\\s+.*)$"
     replace: "# \\1"
 
-- name: Prevent desktop power management from suspending cluster nodes
+- name: Prevent cluster nodes from suspending
   ansible.builtin.systemd_service:
     name: "{{ item }}"
     masked: true
@@ -147,31 +148,114 @@
   register: baseline_boot_target
   changed_when: false
 
-- name: Boot into the desktop rather than a server-only target
+- name: Boot into the server target
   ansible.builtin.command:
-    argv: [systemctl, set-default, graphical.target]
-  when: baseline_boot_target.stdout != 'graphical.target'
+    argv: [systemctl, set-default, multi-user.target]
+  when: baseline_boot_target.stdout != 'multi-user.target'
   changed_when: true
 
-- name: Start the desktop display manager
-  ansible.builtin.systemd_service:
-    name: gdm3
-    state: started
+- name: Inspect the Terraform-provided data disk filesystem
+  ansible.builtin.command:
+    argv: [blkid, -s, TYPE, -o, value, "{{ homelab_data_device }}"]
+  register: baseline_data_type
+  changed_when: false
+  failed_when: baseline_data_type.rc not in [0, 2]
 
-- name: Validate an optional vaulted desktop console password hash
+- name: Refuse to overwrite an existing non-ext4 data disk
   ansible.builtin.assert:
     that:
-      - desktop_password_hash is match('^\$(6|y)\$')
-    fail_msg: Use a vaulted SHA-512-crypt or yescrypt hash, never a plaintext password.
-  when: desktop_password_hash is defined
-  no_log: true
+      - baseline_data_type.stdout in ['', 'ext4']
+      - homelab_data_device == '/dev/vdb'
+      - homelab_data_mount == '/srv/homelab-data'
+    fail_msg: Only the separate Terraform-managed blank or ext4 data disk may be used.
 
-- name: Set an optional desktop console password without enabling password SSH
-  ansible.builtin.user:
-    name: ubuntu
-    password: "{{ desktop_password_hash }}"
-    password_lock: false
-    update_password: always
-  when: desktop_password_hash is defined
-  no_log: true
-  diff: false
+- name: Inspect signatures before formatting an apparently blank data disk
+  ansible.builtin.command:
+    argv: [wipefs, --json, "{{ homelab_data_device }}"]
+  register: baseline_data_signatures
+  when: baseline_data_type.stdout == ''
+  changed_when: false
+
+- name: Refuse to format an unrecognized partitioned or signed disk
+  ansible.builtin.assert:
+    that:
+      - (baseline_data_signatures.stdout | from_json).signatures | length == 0
+    fail_msg: The data disk contains existing signatures; inspect it instead of formatting it.
+  when: baseline_data_type.stdout == ''
+
+- name: Format a new blank data disk without touching retained filesystems
+  ansible.builtin.command:
+    argv: [mkfs.ext4, -L, homelab-data, "{{ homelab_data_device }}"]
+  when: baseline_data_type.stdout == ''
+  changed_when: true
+
+- name: Mount the protected application data disk persistently
+  ansible.posix.mount:
+    path: "{{ homelab_data_mount }}"
+    src: "{{ homelab_data_device }}"
+    fstype: ext4
+    opts: defaults,noatime
+    state: mounted
+
+- name: Create the persistent local-path storage root
+  ansible.builtin.file:
+    path: "{{ homelab_data_mount }}/storage"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+
+- name: Create the guest firewall configuration directory
+  ansible.builtin.file:
+    path: /etc/nftables.d
+    state: directory
+    mode: '0755'
+
+- name: Reconcile a dedicated default-deny guest input firewall
+  ansible.builtin.copy:
+    dest: /etc/nftables.d/homelab.nft
+    mode: '0600'
+    content: |
+      add table inet homelab
+      flush table inet homelab
+      table inet homelab {
+        chain input {
+          type filter hook input priority 0; policy drop;
+          iifname "lo" accept
+          ct state established,related accept
+          ct state invalid drop
+          ip protocol icmp accept
+          meta l4proto ipv6-icmp accept
+          ip saddr {{ k3s_nat_gateway }} tcp dport { 22, 80, 443, 6443 } accept
+          ip saddr {{ k3s_node_cidr }} tcp dport { 80, 443, 6443, 10250 } accept
+          ip saddr {{ k3s_node_cidr }} udp dport 8472 accept
+          ip saddr {{ k3s_pod_cidr }} tcp dport { 6443, 10250 } accept
+        }
+      }
+  notify: Reload guest firewall
+
+- name: Reconcile the dedicated guest firewall service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/homelab-firewall.service
+    mode: '0644'
+    content: |
+      [Unit]
+      Description=Homelab guest input firewall
+      Before=k3s.service k3s-agent.service
+      After=network-pre.target
+      Wants=network-pre.target
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/usr/sbin/nft -f /etc/nftables.d/homelab.nft
+      ExecReload=/usr/sbin/nft -f /etc/nftables.d/homelab.nft
+      [Install]
+      WantedBy=multi-user.target
+  notify: Reload guest firewall
+
+- name: Enable the guest firewall without flushing Kubernetes networking rules
+  ansible.builtin.systemd_service:
+    name: homelab-firewall
+    enabled: true
+    state: started
+    daemon_reload: true

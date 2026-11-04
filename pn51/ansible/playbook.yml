@@ -1,5 +1,5 @@
 ---
-- name: Prepare four Ubuntu Desktop guests
+- name: Prepare four Ubuntu server guests
   hosts: k3s_cluster
   gather_facts: false
   become: true
@@ -55,10 +55,12 @@
       vars:
         k3s_role: agent
 
-- name: Install Prometheus, Alertmanager, and Grafana
+- name: Install monitoring, GitOps bootstrap, and secured platform services
   hosts: k3s_server
   become: true
   gather_facts: false
   any_errors_fatal: true
   roles:
     - role: monitoring
+    - role: argocd
+    - role: platform

@@ -1,0 +1,425 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |
+    additionalArguments:
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.web.http.redirections.entrypoint.permanent=true
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: authelia-data
+  namespace: platform
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: {{ monitoring_storage_class }}
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: authelia
+  namespace: platform
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authelia
+  namespace: platform
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: authelia
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: authelia
+      annotations:
+        homelab/config-checksum: {{ (lookup('ansible.builtin.template', 'authelia-secret.yml.j2') | hash('sha256')) | to_json }}
+    spec:
+      serviceAccountName: authelia
+      enableServiceLinks: false
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: authelia
+          image: {{ authelia_image | to_json }}
+          args: ["authelia", "--config=/config/configuration.yml"]
+          ports:
+            - name: http
+              containerPort: 9091
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 30
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: data
+              mountPath: /data
+            - name: temporary
+              mountPath: /tmp
+      volumes:
+        - name: config
+          secret:
+            secretName: authelia-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: authelia-data
+        - name: temporary
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: authelia
+  namespace: platform
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: authelia
+  ports:
+    - name: http
+      port: 9091
+      targetPort: http
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: headlamp
+  namespace: platform
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: headlamp-viewer
+  namespace: platform
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: headlamp-viewer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+subjects:
+  - kind: ServiceAccount
+    name: headlamp-viewer
+    namespace: platform
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: headlamp-node-reader
+rules:
+  - apiGroups: [""]
+    resources: [nodes, namespaces, persistentvolumes]
+    verbs: [get, list, watch]
+  - apiGroups: [storage.k8s.io]
+    resources: [storageclasses]
+    verbs: [get, list, watch]
+  - apiGroups: [metrics.k8s.io]
+    resources: [nodes, pods]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: headlamp-node-reader
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: headlamp-node-reader
+subjects:
+  - kind: ServiceAccount
+    name: headlamp-viewer
+    namespace: platform
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: headlamp
+  namespace: platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: headlamp
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: headlamp
+    spec:
+      serviceAccountName: headlamp
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        runAsGroup: 101
+        fsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: headlamp
+          image: {{ headlamp_image | to_json }}
+          args: ["-in-cluster", "-plugins-dir=/headlamp/plugins"]
+          ports:
+            - name: http
+              containerPort: 4466
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: temporary
+              mountPath: /tmp
+      volumes:
+        - name: temporary
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: headlamp
+  namespace: platform
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: headlamp
+  ports:
+    - name: http
+      port: 4466
+      targetPort: http
+{% for namespace in ['platform', 'monitoring', argocd_namespace] %}
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: security-headers
+  namespace: {{ namespace }}
+spec:
+  headers:
+    contentTypeNosniff: true
+    frameDeny: true
+    referrerPolicy: no-referrer
+    stsSeconds: 86400
+    stsIncludeSubdomains: true
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: authelia
+  namespace: {{ namespace }}
+spec:
+  forwardAuth:
+    address: http://authelia.platform.svc.cluster.local:9091/api/authz/forward-auth
+    trustForwardHeader: false
+    authResponseHeaders: [Remote-User, Remote-Groups, Remote-Name, Remote-Email]
+{% endfor %}
+{% for app in [
+  {'name': 'auth', 'namespace': 'platform', 'service': 'authelia', 'port': 9091},
+  {'name': 'headlamp', 'namespace': 'platform', 'service': 'headlamp', 'port': 4466},
+  {'name': 'homepage', 'namespace': 'platform', 'service': 'homepage', 'port': 3000},
+  {'name': 'argocd', 'namespace': argocd_namespace, 'service': 'argocd-server', 'port': 80},
+  {'name': 'grafana', 'namespace': 'monitoring', 'service': 'monitoring-grafana', 'port': 80},
+  {'name': 'prometheus', 'namespace': 'monitoring', 'service': 'monitoring-prometheus', 'port': 9090},
+  {'name': 'alertmanager', 'namespace': 'monitoring', 'service': 'monitoring-alertmanager', 'port': 9093}
+] %}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ app.name }}
+  namespace: {{ app.namespace }}
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.middlewares: {{ (app.namespace ~ '-security-headers@kubernetescrd' ~ (',' ~ app.namespace ~ '-authelia@kubernetescrd' if app.name != 'auth' else '')) | to_json }}
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts: [{{ (app.name ~ '.' ~ lab_domain) | to_json }}]
+      secretName: homelab-tls
+  rules:
+    - host: {{ (app.name ~ '.' ~ lab_domain) | to_json }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ app.service }}
+                port:
+                  number: {{ app.port }}
+{% endfor %}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: platform-access
+  namespace: platform
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: {{ (hostvars[groups['k3s_server'][0]]['ansible_host'] ~ '/32') | to_json }}
+        - ipBlock:
+            cidr: {{ (platform_control_plane_overlay_ip ~ '/32') | to_json }}
+      ports:
+        - protocol: TCP
+          port: 9091
+        - protocol: TCP
+          port: 4466
+        - protocol: TCP
+          port: 3000
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: traefik
+      ports:
+        - protocol: TCP
+          port: 9091
+        - protocol: TCP
+          port: 4466
+        - protocol: TCP
+          port: 3000
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - ipBlock:
+            cidr: {{ (hostvars[groups['k3s_server'][0]]['ansible_host'] ~ '/32') | to_json }}
+        - ipBlock:
+            cidr: {{ (k3s_api_service_ip ~ '/32') | to_json }}
+      ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 6443
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: authelia-ntp
+  namespace: platform
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: authelia
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 162.159.200.1/32
+        - ipBlock:
+            cidr: 162.159.200.123/32
+      ports:
+        - protocol: UDP
+          port: 123
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: monitoring-ingress
+  namespace: monitoring
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: {{ (hostvars[groups['k3s_server'][0]]['ansible_host'] ~ '/32') | to_json }}
+        - ipBlock:
+            cidr: {{ (platform_control_plane_overlay_ip ~ '/32') | to_json }}
+      ports:
+        - protocol: TCP
+          port: 3000
+        - protocol: TCP
+          port: 9090
+        - protocol: TCP
+          port: 9093
+
+    - from:
+        - podSelector: {}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: traefik
+      ports:
+        - protocol: TCP
+          port: 3000
+        - protocol: TCP
+          port: 9090
+        - protocol: TCP
+          port: 9093
+
+{% include 'homepage.yml.j2' %}
+{{ '\n' }}
+{% include 'argocd-ingress.yml.j2' %}

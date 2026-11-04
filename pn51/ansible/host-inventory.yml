@@ -1,0 +1,10 @@
+---
+all:
+  children:
+    pn51_host:
+      hosts:
+        pn51:
+          ansible_host: pn51
+          ansible_user: gus
+          ansible_python_interpreter: /usr/bin/python3
+          ansible_become_exe: /usr/bin/sudo.ws

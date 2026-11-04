@@ -1,0 +1,155 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homepage-config
+  namespace: platform
+data:
+  settings.yaml: |
+    title: PN51
+    description: Homelab operations
+    headerStyle: clean
+    color: emerald
+    useEqualHeights: true
+    layout:
+      Operations:
+        style: row
+        columns: 3
+      Observability:
+        style: row
+        columns: 3
+  services.yaml: |
+    - Operations:
+        - Argo CD:
+            icon: mdi-source-branch
+            href: https://argocd.{{ lab_domain }}
+        - Headlamp:
+            icon: mdi-kubernetes
+            href: https://headlamp.{{ lab_domain }}
+        - Authelia:
+            icon: mdi-shield-account
+            href: https://auth.{{ lab_domain }}
+    - Observability:
+        - Grafana:
+            icon: mdi-chart-areaspline
+            href: https://grafana.{{ lab_domain }}
+        - Prometheus:
+            icon: mdi-chart-timeline-variant
+            href: https://prometheus.{{ lab_domain }}
+        - Alertmanager:
+            icon: mdi-bell-alert
+            href: https://alertmanager.{{ lab_domain }}
+  widgets.yaml: "[]\n"
+  bookmarks.yaml: "[]\n"
+  docker.yaml: "{}\n"
+  kubernetes.yaml: "{}\n"
+  custom.css: ""
+  custom.js: ""
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: homepage
+  namespace: platform
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homepage
+  namespace: platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: homepage
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: homepage
+      annotations:
+        homelab/config-checksum: {{ ((lookup('ansible.builtin.file', role_path ~ '/templates/homepage.yml.j2') ~ lab_domain) | hash('sha256')) | to_json }}
+    spec:
+      serviceAccountName: homepage
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: homepage
+          image: {{ homepage_image | to_json }}
+          env:
+            - name: HOMEPAGE_ALLOWED_HOSTS
+              value: {{ ('homepage.' ~ lab_domain) | to_json }}
+          ports:
+            - name: http
+              containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+              httpHeaders:
+                - name: Host
+                  value: {{ ('homepage.' ~ lab_domain) | to_json }}
+            initialDelaySeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+              httpHeaders:
+                - name: Host
+                  value: {{ ('homepage.' ~ lab_domain) | to_json }}
+            initialDelaySeconds: 30
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: runtime-config
+              mountPath: /app/config
+{% for filename in ['settings.yaml', 'services.yaml', 'widgets.yaml', 'bookmarks.yaml', 'docker.yaml', 'kubernetes.yaml', 'custom.css', 'custom.js'] %}
+            - name: config
+              mountPath: /app/config/{{ filename }}
+              subPath: {{ filename }}
+              readOnly: true
+{% endfor %}
+            - name: cache
+              mountPath: /app/.next/cache
+            - name: temporary
+              mountPath: /tmp
+      volumes:
+        - name: config
+          configMap:
+            name: homepage-config
+        - name: runtime-config
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}
+        - name: temporary
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: homepage
+  namespace: platform
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: homepage
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http

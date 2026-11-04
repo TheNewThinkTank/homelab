@@ -1,24 +1,23 @@
-variable "proxmox_node" {
-  description = "Existing Proxmox VE 9 node name; Terraform never installs or erases the host."
+variable "libvirt_uri" {
+  description = "System libvirt on the Ubuntu PN51, reached using the existing SSH identity."
   type        = string
+  default     = "qemu+ssh://gus@pn51/system"
+
+  validation {
+    condition     = can(regex("^qemu\\+ssh://[^/]+/system", var.libvirt_uri))
+    error_message = "Use SSH to the PN51 system libvirt, never the Mac or a session hypervisor."
+  }
 }
 
-variable "vm_datastore" {
-  description = "Datastore supporting VM and cloud-init disks."
+variable "host_ssh_alias" {
+  description = "Existing, host-key-verified SSH alias used as the guest jump host."
   type        = string
-  default     = "local-lvm"
-}
+  default     = "pn51"
 
-variable "image_datastore" {
-  description = "File-backed datastore with the Import content type enabled."
-  type        = string
-  default     = "local"
-}
-
-variable "bridge" {
-  description = "Existing bridge connected to the private node network."
-  type        = string
-  default     = "vmbr0"
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9][a-zA-Z0-9_.-]*$", var.host_ssh_alias))
+    error_message = "Use a plain SSH hostname or alias, not shell arguments."
+  }
 }
 
 variable "cluster_name" {
@@ -32,38 +31,28 @@ variable "cluster_name" {
   }
 }
 
-variable "vm_id_start" {
-  description = "First of four consecutive VM IDs; reserve these IDs exclusively for this lab."
-  type        = number
-  default     = 5100
-
-  validation {
-    condition     = floor(var.vm_id_start) == var.vm_id_start && var.vm_id_start >= 100 && var.vm_id_start <= 999999996
-    error_message = "The first VM ID must be an integer between 100 and 999999996."
-  }
-}
-
 variable "network_cidr" {
-  description = "Private IPv4 LAN/VLAN subnet; reserve the four node addresses outside DHCP."
+  description = "Dedicated libvirt NAT subnet; must not overlap LAN, pods, or services."
   type        = string
+  default     = "10.51.0.0/24"
 
   validation {
-    condition     = can(cidrnetmask(var.network_cidr)) && try(cidrhost(var.network_cidr, 0) == split("/", var.network_cidr)[0], false)
-    error_message = "Use a canonical IPv4 subnet, for example 192.168.50.0/24."
+    condition     = can(cidrnetmask(var.network_cidr)) && try(cidrhost(var.network_cidr, 0) == split("/", var.network_cidr)[0] && split("/", var.network_cidr)[1] == "24", false)
+    error_message = "Use a canonical IPv4 /24 subnet."
   }
 }
 
 variable "gateway" {
-  description = "IPv4 gateway on network_cidr."
+  description = "Libvirt's NAT gateway address within network_cidr."
   type        = string
+  default     = "10.51.0.1"
 
   validation {
     condition = try(
-      cidrhost("${var.gateway}/${split("/", var.network_cidr)[1]}", 0) == cidrhost(var.network_cidr, 0) &&
-      var.gateway != cidrhost(var.network_cidr, 0) && var.gateway != cidrhost(var.network_cidr, -1),
+      var.gateway == cidrhost(var.network_cidr, 1),
       false
     )
-    error_message = "The gateway must be a usable IPv4 address in network_cidr."
+    error_message = "The libvirt NAT gateway must be the subnet's first usable address."
   }
 }
 
@@ -74,9 +63,8 @@ variable "node_ip_offset" {
 
   validation {
     condition = try(
-      floor(var.node_ip_offset) == var.node_ip_offset && var.node_ip_offset > 0 &&
-      var.node_ip_offset + 3 < pow(2, 32 - tonumber(split("/", var.network_cidr)[1])) - 1 &&
-      !contains([for index in range(4) : cidrhost(var.network_cidr, var.node_ip_offset + index)], var.gateway),
+      floor(var.node_ip_offset) == var.node_ip_offset && var.node_ip_offset > 1 &&
+      var.node_ip_offset + 3 < 255,
       false
     )
     error_message = "Four usable, non-gateway node addresses must fit inside network_cidr."
@@ -94,16 +82,6 @@ variable "dns_servers" {
   }
 }
 
-variable "admin_cidrs" {
-  description = "Trusted administrator IPv4 CIDRs allowed to reach SSH and the Kubernetes API."
-  type        = set(string)
-
-  validation {
-    condition     = length(var.admin_cidrs) > 0 && alltrue([for cidr in var.admin_cidrs : can(cidrnetmask(cidr)) && try(tonumber(split("/", cidr)[1]) > 0, false)])
-    error_message = "Provide explicit trusted IPv4 CIDRs; 0.0.0.0/0 is forbidden."
-  }
-}
-
 variable "ssh_public_keys" {
   description = "Existing public SSH keys only. Private keys and passwords never enter Terraform."
   type        = list(string)
@@ -115,24 +93,63 @@ variable "ssh_public_keys" {
 }
 
 variable "vm_memory_mb" {
-  description = "Fixed RAM per desktop VM; 6144 MiB x 4 leaves 8 GiB of the PN51's 32 GiB for Proxmox."
+  description = "Fixed RAM per server VM; four 4 GiB guests leave about 15 GiB for Ubuntu Desktop."
   type        = number
-  default     = 6144
+  default     = 4096
 
   validation {
-    condition     = floor(var.vm_memory_mb) == var.vm_memory_mb && var.vm_memory_mb >= 6144
-    error_message = "Ubuntu 26.04 Desktop guests require at least 6144 MiB each."
+    condition     = floor(var.vm_memory_mb) == var.vm_memory_mb && var.vm_memory_mb >= 4096 && var.vm_memory_mb <= 6144
+    error_message = "Use 4096-6144 MiB per VM, retaining at least 6 GiB for the Desktop host."
+  }
+}
+
+variable "vm_vcpus" {
+  description = "Virtual CPUs per guest on the 16-thread Ryzen host."
+  type        = number
+  default     = 2
+
+  validation {
+    condition     = floor(var.vm_vcpus) == var.vm_vcpus && var.vm_vcpus >= 2 && var.vm_vcpus <= 4
+    error_message = "Use two to four vCPUs per guest."
   }
 }
 
 variable "vm_disk_gb" {
-  description = "Root disk per VM, including Desktop, container images, and local persistent volumes."
+  description = "Sparse qcow2 root disk per VM; includes node-local persistent volumes."
   type        = number
-  default     = 80
+  default     = 64
 
   validation {
-    condition     = floor(var.vm_disk_gb) == var.vm_disk_gb && var.vm_disk_gb >= 48
-    error_message = "Allocate an integer disk size of at least 48 GiB per desktop VM."
+    condition     = floor(var.vm_disk_gb) == var.vm_disk_gb && var.vm_disk_gb >= 32
+    error_message = "Allocate an integer disk size of at least 32 GiB per server VM."
+  }
+}
+
+variable "vm_data_disk_gb" {
+  description = "Protected per-node data disk; never destroyed by worker root replacement."
+  type        = number
+  default     = 64
+
+  validation {
+    condition     = floor(var.vm_data_disk_gb) == var.vm_data_disk_gb && var.vm_data_disk_gb >= 32
+    error_message = "Allocate at least 32 GiB per protected data disk."
+  }
+}
+
+variable "image_path" {
+  description = "Optional local image path; defaults to make image's private, pinned download."
+  type        = string
+  default     = null
+}
+
+variable "image_checksum" {
+  description = "Optional reviewed SHA-256 override; defaults to the pinned image manifest."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.image_checksum == null || can(regex("^[a-f0-9]{64}$", var.image_checksum))
+    error_message = "Use a SHA-256 hex digest."
   }
 }
 

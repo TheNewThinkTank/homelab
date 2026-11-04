@@ -1,0 +1,32 @@
+global
+    maxconn 1024
+
+defaults
+    mode tcp
+    timeout connect 5s
+    timeout client 60s
+    timeout server 60s
+
+frontend http
+    bind 0.0.0.0:80
+    acl trusted_lan src 192.168.1.0/24
+    tcp-request connection reject if !trusted_lan
+    default_backend vm_http
+
+frontend https
+    bind 0.0.0.0:443
+    acl trusted_lan src 192.168.1.0/24
+    tcp-request connection reject if !trusted_lan
+    default_backend vm_https
+
+backend vm_http
+    balance roundrobin
+{% for name, host in worker_hosts | dictsort %}
+    server {{ name }} {{ host.ansible_host }}:80 check
+{% endfor %}
+
+backend vm_https
+    balance roundrobin
+{% for name, host in worker_hosts | dictsort %}
+    server {{ name }} {{ host.ansible_host }}:443 check
+{% endfor %}

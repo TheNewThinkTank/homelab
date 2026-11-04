@@ -1,0 +1,124 @@
+---
+- name: Deploy the secured platform from the private controller
+  delegate_to: localhost
+  become: false
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+  block:
+    - name: Validate the domain and vaulted identity secrets
+      ansible.builtin.assert:
+        that:
+          - lab_domain is match('^[a-z0-9]+([.-][a-z0-9]+)+$')
+          - authelia_password_hash is match('^\$argon2id\$')
+          - authelia_session_secret | length >= 32
+          - authelia_storage_key | length >= 32
+          - authelia_jwt_secret | length >= 32
+          - authelia_username is match('^[a-z][a-z0-9_-]*$')
+      no_log: true
+
+    - name: Read the control-plane overlay network identity
+      kubernetes.core.k8s_info:
+        kubeconfig: "{{ kubeconfig_local_path }}"
+        validate_certs: true
+        api_version: v1
+        kind: Node
+        name: "{{ groups['k3s_server'][0] }}"
+      register: platform_control_plane
+
+    - name: Select the actual control-plane overlay source address
+      ansible.builtin.set_fact:
+        platform_control_plane_overlay_ip: "{{ platform_control_plane.resources[0].spec.podCIDR.split('/')[0] }}"
+        cacheable: false
+
+    - name: Wait for the packaged Traefik middleware API
+      kubernetes.core.k8s_info:
+        kubeconfig: "{{ kubeconfig_local_path }}"
+        validate_certs: true
+        api_version: apiextensions.k8s.io/v1
+        kind: CustomResourceDefinition
+        name: middlewares.traefik.io
+      register: platform_traefik_crd
+      until: platform_traefik_crd.resources | length == 1
+      retries: 90
+      delay: 5
+
+    - name: Reconcile the restricted platform namespace
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_local_path }}"
+        validate_certs: true
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: platform
+            labels:
+              pod-security.kubernetes.io/enforce: restricted
+              pod-security.kubernetes.io/audit: restricted
+              pod-security.kubernetes.io/warn: restricted
+
+    - name: Reconcile private TLS certificates in the ingress namespaces
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_local_path }}"
+        validate_certs: true
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: homelab-tls
+            namespace: "{{ item }}"
+          type: kubernetes.io/tls
+          data:
+            tls.crt: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/../../.local/pki/tls.crt') | b64encode }}"
+            tls.key: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/../../.local/pki/tls.key') | b64encode }}"
+      loop: [platform, monitoring, "{{ argocd_namespace }}"]
+      no_log: true
+      diff: false
+
+    - name: Reconcile Authelia configuration outside Helm release state
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_local_path }}"
+        validate_certs: true
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: authelia-config
+            namespace: platform
+          type: Opaque
+          data:
+            configuration.yml: "{{ platform_secret.stringData['configuration.yml'] | b64encode }}"
+            users_database.yml: "{{ platform_secret.stringData['users_database.yml'] | b64encode }}"
+      vars:
+        platform_secret: "{{ lookup('ansible.builtin.template', 'authelia-secret.yml.j2') | from_yaml }}"
+      no_log: true
+      diff: false
+
+    - name: Reconcile platform workloads and read-only Headlamp access
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_local_path }}"
+        validate_certs: true
+        state: present
+        definition: "{{ lookup('ansible.builtin.template', 'resources.yml.j2') | from_yaml_all | list }}"
+        apply: true
+        server_side_apply:
+          field_manager: homelab-ansible
+          force_conflicts: false
+
+    - name: Wait for the platform applications to become available
+      kubernetes.core.k8s_info:
+        kubeconfig: "{{ kubeconfig_local_path }}"
+        validate_certs: true
+        api_version: apps/v1
+        kind: Deployment
+        namespace: platform
+        name: "{{ item }}"
+      register: platform_workload
+      until: >-
+        platform_workload.resources | length == 1 and
+        (platform_workload.resources[0].status.availableReplicas | default(0) | int) == 1
+      loop: [authelia, headlamp, homepage]
+      retries: 90
+      delay: 5

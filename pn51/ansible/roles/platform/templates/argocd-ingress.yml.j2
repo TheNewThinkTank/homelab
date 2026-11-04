@@ -1,0 +1,30 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: argocd-server-ingress
+  namespace: {{ argocd_namespace }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-server
+      app.kubernetes.io/instance: argocd
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ argocd_namespace }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: traefik
+        - ipBlock:
+            cidr: {{ (hostvars[groups['k3s_server'][0]]['ansible_host'] ~ '/32') | to_json }}
+        - ipBlock:
+            cidr: {{ (platform_control_plane_overlay_ip ~ '/32') | to_json }}
+      ports:
+        - protocol: TCP
+          port: 8080

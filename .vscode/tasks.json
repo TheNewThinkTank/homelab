@@ -1,0 +1,89 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "PN51 Host Setup",
+			"type": "shell",
+			"command": "make host",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "PN51 Cluster Status",
+			"type": "shell",
+			"command": "kubectl --kubeconfig .local/kubeconfig get nodes -o wide && kubectl --kubeconfig .local/kubeconfig get pods,pvc -A",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "PN51 Authelia Logs",
+			"type": "shell",
+			"command": "kubectl --kubeconfig .local/kubeconfig -n platform logs deployment/authelia --tail=50",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "PN51 Platform Reconcile",
+			"type": "shell",
+			"command": "make platform-check && make configure ANSIBLE='.venv/bin/ansible-playbook --start-at-task \"Validate the domain and vaulted identity secrets\"'",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "PN51 Platform Validate",
+			"type": "shell",
+			"command": "make platform-check && make lint",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "PN51 Platform Recovery",
+			"type": "shell",
+			"command": "make platform-check && make configure ANSIBLE='.venv/bin/ansible-playbook --start-at-task \"Validate the domain and vaulted identity secrets\"'",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "PN51 Storage Bootstrap Check",
+			"type": "shell",
+			"command": "ANSIBLE_HOME=\"$PWD/.local/ansible\" ANSIBLE_LOCAL_TEMP=\"$PWD/.local/ansible/tmp\" .venv/bin/ansible -i .local/inventory.json pn51-server-1 --become -m ansible.builtin.command -a '/usr/local/bin/k3s server --help' | grep -E 'default-local-storage-path|local-storage'",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "PN51 Cluster Convergence",
+			"type": "shell",
+			"command": "make idempotence && make verify",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "PN51 Recovery Inventory",
+			"type": "shell",
+			"command": "kubectl --kubeconfig .local/kubeconfig get pv -o 'custom-columns=NAME:.metadata.name,CLAIM:.spec.claimRef.name,NODE:.spec.nodeAffinity.required.nodeSelectorTerms[0].matchExpressions[0].values[0],PATH:.spec.hostPath.path,RECLAIM:.spec.persistentVolumeReclaimPolicy'",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "PN51 Worker Recovery",
+			"type": "shell",
+			"command": "make replace-worker NODE=pn51-worker-2 CONFIRM_REPLACEMENT='replace pn51-worker-2' && make trust-guest-keys && make configure && make verify",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "PN51 Legacy Cutover",
+			"type": "shell",
+			"command": "make cutover CONFIRM=retire-host-k3s",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "PN51 Homepage and Argo CD",
+			"type": "shell",
+			"command": "make configure ANSIBLE='.venv/bin/ansible-playbook --start-at-task \"Create the isolated Argo CD and application namespaces\"' && make verify",
+			"isBackground": false,
+			"problemMatcher": []
+		}
+	]
+}
