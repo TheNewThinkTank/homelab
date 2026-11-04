@@ -1028,7 +1028,7 @@ acceptance and recovery exercises can prove the second.</p>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>make<span class="w"> </span>check
 </code></pre></div>
 <p>The chart download and dependency installation require internet access, but no
-Proxmox, SSH, vault, or Kubernetes credentials. Tests never call Terraform apply
+host, guest SSH, vault, or Kubernetes credentials. Tests never call Terraform apply
 against the host.</p>
 <table>
 <thead>
@@ -1044,11 +1044,11 @@ against the host.</p>
 </tr>
 <tr>
 <td>Terraform mocked plans</td>
-<td>Exactly four VMs; one server/three workers; default RAM budget; firewalls; deterministic inventory</td>
+<td>Exactly four VMs; one server/three workers; RAM budget; NAT; cloud-init; separate retained disks; deterministic inventory</td>
 </tr>
 <tr>
 <td>Negative Terraform cases</td>
-<td>World-open administration, small Desktop RAM, gateway/IP collisions, overlapping networks, private-key input rejected</td>
+<td>Small/excessive RAM, gateway/IP collisions, overlapping networks, private-key input, bad image digest rejected</td>
 </tr>
 <tr>
 <td>Ansible production lint</td>
@@ -1057,6 +1057,14 @@ against the host.</p>
 <tr>
 <td>Real Ansible templates</td>
 <td>All four host configs rendered; server/agent flag separation; token-file use; unchanged second render</td>
+</tr>
+<tr>
+<td>Platform render gate</td>
+<td>33 real resources; seven MFA/TLS routes, restricted containers, credential-free Homepage, network policies, read-only Headlamp RBAC</td>
+</tr>
+<tr>
+<td>Argo CD chart gate</td>
+<td>Exact official archive checksum, three CRDs, private services, non-root workloads, disabled anonymous access, repository/namespace project limits</td>
 </tr>
 <tr>
 <td>Python regressions</td>
@@ -1094,13 +1102,15 @@ separate write-capable workflow.</p>
 </code></pre></div>
 <p>This requires the private inventory/kubeconfig and a reachable cluster. It checks
 all declared node names, exact K3s versions and Ready conditions, monitoring
-Deployment/StatefulSet/DaemonSet replica health, three Bound persistent claims,
-Grafana's database health, nonempty healthy Prometheus targets, and <code>helm test</code>.
+Deployment/StatefulSet/DaemonSet replica health, retained Bound application claims,
+Grafana database health, healthy Prometheus targets, Authelia/Headlamp/Homepage,
+Argo CD workload and server health, live project restrictions, DNS, Traefik,
+metrics, local-path storage, and <code>helm test</code>.
 Helm test creates a temporary chart test pod; it does not rebuild VMs.</p>
-<p>Also inspect the Desktop console on all guests, confirm the Proxmox datacenter
-firewall is enforcing the declared policy, and verify that a non-admin machine
-cannot reach guest SSH or the server API. An internal cluster health check cannot
-prove an external firewall is enabled.</p>
+<p>Also verify host and VM boot behavior, guest input firewall rules, and that a
+non-admin machine cannot reach guest SSH or the server API. After cutover, test
+HTTPS certificate validation, Authelia MFA, and denied anonymous dashboard
+access. An internal health check does not prove the external access boundary.</p>
 <h2 id="how-to-prove-full-convergence">How to Prove Full Convergence</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>make<span class="w"> </span>idempotence
 </code></pre></div>
@@ -1117,13 +1127,14 @@ blanket <code>changed_when: false</code>. Pure observation commands are intentio
 unchanged; actual package, Secret, file, service, and Helm changes are not hidden.</p>
 <h2 id="how-to-exercise-recovery">How to Exercise Recovery</h2>
 <p>On an isolated test copy, prove that a stateless worker can be replaced and
-rejoin under its original name, that a data-bearing worker is refused, and that
+rejoin under its original name, that protected data survives root replacement,
+that unprotected local data is refused, and that
 etcd plus application data can be restored from off-host backups. Run live
 acceptance and idempotence after each exercise. Never test a production restore
-against conflicting VM IDs or addresses.</p>
+against conflicting libvirt names or addresses.</p>
 <h2 id="verification-limits">Verification Limits</h2>
-<p>Mocked plans do not prove Proxmox ACLs, imported-image boot behavior, guest-agent
-startup, Ubuntu Desktop installation, CNI traffic, kernel compatibility, or
+<p>Mocked plans do not prove libvirt permissions, image boot behavior, guest-agent
+startup, protected filesystem mounting, CNI traffic, kernel compatibility, or
 physical capacity. Chart rendering does not prove successful operator scheduling
 or database migration. Local template convergence is not a substitute for the
 full live second-run check.</p>

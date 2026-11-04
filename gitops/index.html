@@ -74,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#optional-application-gitops" class="md-skip">
+        <a href="#application-gitops" class="md-skip">
           Skip to content
         </a>
       
@@ -873,6 +873,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Optional GitOps
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -889,6 +907,58 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#ownership" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ownership
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#access-and-authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Access and Authentication
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#application-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Application Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -914,24 +984,70 @@
   
 
 
-<h1 id="optional-application-gitops">Optional Application GitOps</h1>
-<p>The infrastructure bootstrap does not install Argo CD or deploy the existing
-fitness-tracker example. Ansible owns the monitoring Helm release so that its
-CRDs, secret boundary, and recovery path remain available without an application
-GitOps controller.</p>
-<p>If you later add Argo CD, keep its ownership separate from Terraform and the
-Ansible-managed monitoring release. Do not let two reconcilers manage the same
-objects. Review the example Application's automated sync/prune behavior, image
-versions, namespace, service exposure, and application credentials before
-applying it.</p>
-<p>The existing application's Secret has empty values and is not a production
-secret source. Use a dedicated encrypted-secret or external-secret workflow for
-real applications; public Git must not contain populated plaintext Secret data.
-Base64-encoding a Kubernetes Secret is not protection.</p>
-<p>Public ingress, TLS, authentication, external DNS, application database backups,
-and network policies are separate explicit additions. The base cluster disables
-the default K3s ingress and service-load-balancer controllers and opens no
-NodePort range.</p>
+<h1 id="application-gitops">Application GitOps</h1>
+<p>Ansible installs Argo CD from the checksummed official Helm chart. It also owns
+Homepage, monitoring, authentication, TLS routes, network policy, and Argo CD's
+bootstrap projects. Argo CD is for reviewed application workloads, not a second
+reconciler for the infrastructure that installed it.</p>
+<h2 id="ownership">Ownership</h2>
+<table>
+<thead>
+<tr>
+<th>Owner</th>
+<th>Resources</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Terraform</td>
+<td>Host-side VM network, identities, root/data disks, and cloud-init</td>
+</tr>
+<tr>
+<td>Ansible and Helm</td>
+<td>Host/guest baseline, K3s, monitoring, Homepage, Authelia, Headlamp, Argo CD bootstrap and ingress</td>
+</tr>
+<tr>
+<td>Argo CD applications</td>
+<td>Reviewed namespaced workloads in <code>fitness-tracker</code> only</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>default</code> project allows no repositories or destinations. The <code>homelab</code>
+project permits only <code>https://github.com/TheNewThinkTank/homelab.git</code> and the
+<code>fitness-tracker</code> namespace on this cluster. It cannot manage cluster-scoped
+resources or the <code>platform</code>, <code>monitoring</code>, <code>argocd</code>, or <code>kube-system</code> namespaces.
+Ansible precreates the application namespace with restricted Pod Security.</p>
+<p>Argo CD itself remains a privileged cluster controller: protect its namespace,
+administrator account, repository credentials, and project administration.
+Project limits are not isolation from a compromised controller.</p>
+<h2 id="access-and-authentication">Access and Authentication</h2>
+<p>Open <code>https://argocd.pn51.192.168.1.20.sslip.io</code> or use the Homepage link. Authelia
+MFA protects the external route; Argo CD then requires its own login. Anonymous
+Argo CD access is disabled and the default authenticated role is read-only.
+The initial <code>admin</code> credential is a Kubernetes Secret, not a public Helm value
+or an Ansible Vault field. Follow <a href="../observability/#argo-cd-access">Argo CD access</a>
+to retrieve it in your own terminal and rotate it after first use.</p>
+<p>Traefik terminates HTTPS. The Argo CD server listens on HTTP only inside its
+private namespace, behind a default-deny policy and the reviewed ingress rule.
+This does not disable Kubernetes API certificate verification.</p>
+<h2 id="application-example">Application Example</h2>
+<p>The bootstrap does not create an Application, enable application auto-sync, or
+adopt existing infrastructure. The existing <code>pn51/application.yaml</code> example now
+selects the <code>homelab</code> project. Review it before applying: it follows <code>HEAD</code> and
+its explicit automated sync, self-heal, and prune settings will take effect if
+you choose to install it.</p>
+<p>The example's application Secret has empty values and is not a production secret
+source. Use a dedicated encrypted-secret or external-secret workflow for real
+credentials; base64 is not protection. Validate images, manifests, application
+backups, and any ingress/authentication changes before enabling reconciliation.
+Changes in this local checkout are not available to Argo CD until deliberately
+published to the configured Git repository.</p>
+<p>To admit a different repository or namespace, review the project template and
+the corresponding Ansible group variables; do not casually widen the project
+to <code>*</code>. Do not edit Ansible-owned bootstrap resources through an Application.</p>
+<p>Run <code>make argocd-chart-check</code>, <code>make configure</code>, <code>make verify</code>, and
+<code>make idempotence</code> after changing the bootstrap. Chart upgrades can change CRDs;
+Helm rollback does not restore application data or reverse CRD migrations.</p>
 <p>See <a href="../security/">security</a>, <a href="../PN51/architecture-diagrams/">architecture</a>, and
 <a href="../operations/">operations</a>.</p>
 

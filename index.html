@@ -963,9 +963,10 @@
 
 
 <h1 id="pn51-homelab">PN51 Homelab</h1>
-<p>Terraform creates four Ubuntu 26.04 LTS guests on Proxmox. Ansible installs
-Ubuntu Desktop, configures a one-server/three-worker K3s cluster, and deploys
-Prometheus and Grafana through the pinned <code>kube-prometheus-stack</code> Helm chart.</p>
+<p>Terraform creates four Ubuntu Server 26.04 LTS VMs on the PN51's Ubuntu Desktop
+KVM host. Ansible configures a one-server/three-worker K3s cluster, retained data
+disks, Prometheus, Grafana, Authelia MFA, Headlamp, Homepage, scoped Argo CD,
+and protected HTTPS ingress.</p>
 <p>Start with <a href="provisioning/">provisioning</a>. For an existing installation, use
 <a href="operations/">operations</a> or <a href="observability/">monitoring</a>.</p>
 <table>
@@ -997,14 +998,19 @@ Prometheus and Grafana through the pinned <code>kube-prometheus-stack</code> Hel
 <td><a href="security/">Security</a></td>
 </tr>
 <tr>
+<td>Manage application GitOps without adopting infrastructure</td>
+<td><a href="gitops/">Argo CD ownership</a></td>
+</tr>
+<tr>
 <td>Check correctness and convergence</td>
 <td><a href="testing/">Testing</a></td>
 </tr>
 </tbody>
 </table>
 <h2 id="boundaries">Boundaries</h2>
-<p>The PN51 has 32 GiB RAM and a 1 TB NVMe disk. Four 6 GiB desktop VMs leave
-8 GiB for Proxmox. Each VM has two vCPUs and an 80 GiB root disk.</p>
+<p>The PN51 has 32 GiB RAM and a 1 TB NVMe disk. Four 4 GiB server VMs leave about
+half the memory for the Desktop host. Each VM has two vCPUs, a replaceable 64 GiB
+root disk, and a protected 64 GiB application data disk.</p>
 <p>This is one physical failure domain. The control plane uses a single-member
 embedded etcd datastore for snapshots, not for high availability. Monitoring uses
 node-local persistent volumes by default. Back up both cluster state and

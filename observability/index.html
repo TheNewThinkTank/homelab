@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#how-to-use-monitoring" class="md-skip">
+        <a href="#how-to-use-platform-services" class="md-skip">
           Skip to content
         </a>
       
@@ -713,6 +713,50 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#https-and-authelia" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTTPS and Authelia
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#homepage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Homepage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#argo-cd-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Argo CD Access
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#headlamp-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Headlamp Access
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#how-to-open-grafana" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1019,17 +1063,92 @@
   
 
 
-<h1 id="how-to-use-monitoring">How to Use Monitoring</h1>
+<h1 id="how-to-use-platform-services">How to Use Platform Services</h1>
 <p>The Ansible monitoring role installs a SHA-256-pinned <code>kube-prometheus-stack</code>
 archive. It includes Prometheus, Grafana, Alertmanager, kube-state-metrics,
 node-exporter, dashboards, rules, and Prometheus Operator CRDs.</p>
 <h2 id="prerequisites">Prerequisites</h2>
 <p>Complete <a href="../provisioning/">provisioning</a>. Use the private administrator kubeconfig
-on a trusted controller. This is not a public dashboard installation.</p>
+on a trusted controller and keep <code>make tunnel</code> running. Services are private;
+the guarded cutover adds LAN-only HTTPS access, not internet exposure.</p>
+<h2 id="https-and-authelia">HTTPS and Authelia</h2>
+<p>After <code>make cutover CONFIRM=retire-host-k3s</code>, the default URLs are:</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>URL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Authelia</td>
+<td><code>https://auth.pn51.192.168.1.20.sslip.io</code></td>
+</tr>
+<tr>
+<td>Homepage</td>
+<td><code>https://homepage.pn51.192.168.1.20.sslip.io</code></td>
+</tr>
+<tr>
+<td>Argo CD</td>
+<td><code>https://argocd.pn51.192.168.1.20.sslip.io</code></td>
+</tr>
+<tr>
+<td>Grafana</td>
+<td><code>https://grafana.pn51.192.168.1.20.sslip.io</code></td>
+</tr>
+<tr>
+<td>Prometheus</td>
+<td><code>https://prometheus.pn51.192.168.1.20.sslip.io</code></td>
+</tr>
+<tr>
+<td>Alertmanager</td>
+<td><code>https://alertmanager.pn51.192.168.1.20.sslip.io</code></td>
+</tr>
+<tr>
+<td>Headlamp</td>
+<td><code>https://headlamp.pn51.192.168.1.20.sslip.io</code></td>
+</tr>
+</tbody>
+</table>
+<p>Authelia's generated <code>gus</code> credential is in the encrypted vault. Retrieve it only
+through your trusted terminal/password-manager workflow. MFA enrollment uses
+the private filesystem notifier under Authelia's <code>/data/notifications.txt</code>;
+read enrollment codes only in your own terminal, never in chat or public logs.</p>
+<p>The internal CA is <code>.local/pki/ca.crt</code>. Nothing installs it into the Mac's trust
+store. Browser trust remains an explicit operator decision; do not disable
+TLS validation in provisioning. Router DNS-rebinding protection can block
+sslip.io answers; a deliberately configured private DNS domain is an alternative.</p>
+<h2 id="homepage">Homepage</h2>
+<p>Homepage is the default landing page after an Authelia login without a specific
+return URL. It links the platform and monitoring services, including Argo CD.
+Its settings and service cards are declared in the platform role's Homepage
+template; edits are applied by <code>make configure</code> with a checksum-driven rollout.
+It has no Kubernetes token, Docker socket, API credentials, or persistent state.
+Writable cache/log files are disposable; configuration is reconstructed from Git.</p>
+<h2 id="argo-cd-access">Argo CD Access</h2>
+<p>After Authelia MFA, Argo CD requires a separate login. On first installation,
+retrieve its generated <code>admin</code> password only in your own trusted terminal:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kubectl<span class="w"> </span>--kubeconfig<span class="w"> </span>.local/kubeconfig<span class="w"> </span>-n<span class="w"> </span>argocd<span class="w"> </span>get<span class="w"> </span>secret<span class="w"> </span>argocd-initial-admin-secret<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">&#39;{.data.password}&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>base64<span class="w"> </span>--decode
+</code></pre></div>
+<p>Do not post the password in chat, logs, or Git. Change it in Argo CD after first
+use, retain the replacement in your password manager, and remove the bootstrap
+Secret once no longer needed. Its absence after rotation is normal.</p>
+<p>The <code>homelab</code> project is restricted to the reviewed repository and
+<code>fitness-tracker</code> namespace. No application is deployed or auto-synced by
+bootstrap. See <a href="../gitops/">GitOps ownership and the application example</a>.</p>
+<h2 id="headlamp-access">Headlamp Access</h2>
+<p>In your own terminal, use the private lab kubeconfig to mint a read-only token:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>kubectl<span class="w"> </span>--kubeconfig<span class="w"> </span>.local/kubeconfig<span class="w"> </span>-n<span class="w"> </span>platform<span class="w"> </span>create<span class="w"> </span>token<span class="w"> </span>headlamp-viewer<span class="w"> </span>--duration<span class="o">=</span>1h
+</code></pre></div>
+<p>Enter it in Headlamp after Authelia MFA. Do not post the token in chat or store
+it in Git. The default role cannot read Secrets or mutate cluster resources.
+Cluster-admin access is not granted by the bootstrap.</p>
 <h2 id="how-to-open-grafana">How to Open Grafana</h2>
 <p>In a dedicated terminal:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>kubectl<span class="w"> </span>--kubeconfig<span class="w"> </span>.local/kubeconfig<span class="w"> </span>-n<span class="w"> </span>monitoring<span class="w"> </span>port-forward<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span>--address<span class="w"> </span><span class="m">127</span>.0.0.1<span class="w"> </span>service/monitoring-grafana<span class="w"> </span><span class="m">3000</span>:80
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kubectl<span class="w"> </span>--kubeconfig<span class="w"> </span>.local/kubeconfig<span class="w"> </span>-n<span class="w"> </span>monitoring<span class="w"> </span>port-forward<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span>--address<span class="w"> </span><span class="m">127</span>.0.0.1<span class="w"> </span>service/monitoring-grafana<span class="w"> </span><span class="m">3000</span>:80
 </code></pre></div>
 <p>Open <a href="http://127.0.0.1:3000">http://127.0.0.1:3000</a>. The default username is <code>admin</code>; the generated
 password is in the encrypted vault. Retrieve it through your trusted local
@@ -1040,23 +1159,25 @@ customizations persist on its 2 GiB PVC. Its admin password is initialized in th
 database; changing only the bootstrap Secret does not rotate an existing account.</p>
 <h2 id="how-to-open-prometheus-or-alertmanager">How to Open Prometheus or Alertmanager</h2>
 <p>Use separate terminals as needed:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>kubectl<span class="w"> </span>--kubeconfig<span class="w"> </span>.local/kubeconfig<span class="w"> </span>-n<span class="w"> </span>monitoring<span class="w"> </span>port-forward<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span>--address<span class="w"> </span><span class="m">127</span>.0.0.1<span class="w"> </span>service/monitoring-prometheus<span class="w"> </span><span class="m">9090</span>:9090
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>kubectl<span class="w"> </span>--kubeconfig<span class="w"> </span>.local/kubeconfig<span class="w"> </span>-n<span class="w"> </span>monitoring<span class="w"> </span>port-forward<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span>--address<span class="w"> </span><span class="m">127</span>.0.0.1<span class="w"> </span>service/monitoring-prometheus<span class="w"> </span><span class="m">9090</span>:9090
 </code></pre></div>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kubectl<span class="w"> </span>--kubeconfig<span class="w"> </span>.local/kubeconfig<span class="w"> </span>-n<span class="w"> </span>monitoring<span class="w"> </span>port-forward<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span>--address<span class="w"> </span><span class="m">127</span>.0.0.1<span class="w"> </span>service/monitoring-alertmanager<span class="w"> </span><span class="m">9093</span>:9093
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>kubectl<span class="w"> </span>--kubeconfig<span class="w"> </span>.local/kubeconfig<span class="w"> </span>-n<span class="w"> </span>monitoring<span class="w"> </span>port-forward<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span>--address<span class="w"> </span><span class="m">127</span>.0.0.1<span class="w"> </span>service/monitoring-alertmanager<span class="w"> </span><span class="m">9093</span>:9093
 </code></pre></div>
 <p>Open <a href="http://127.0.0.1:9090">http://127.0.0.1:9090</a> or <a href="http://127.0.0.1:9093">http://127.0.0.1:9093</a>. These services have no
-independent public authentication boundary and must stay private. Stop each
+independent authentication boundary when bypassing ingress with administrator
+port forwarding and must stay private. The LAN HTTPS routes require Authelia.
+Stop each
 forward with Ctrl-C when finished.</p>
 <p>Prometheus retains up to three days or about 8 GB in a 12 GiB PVC. Its WAL and
 compaction need space beyond the retention-size setting. Alertmanager uses 1 GiB
 for silences and notification state. No alert email/webhook destination is
 invented; configure a receiver and its credentials deliberately when required.</p>
 <h2 id="how-to-check-health">How to Check Health</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>make<span class="w"> </span>verify
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>kubectl<span class="w"> </span>--kubeconfig<span class="w"> </span>.local/kubeconfig<span class="w"> </span>-n<span class="w"> </span>monitoring<span class="w"> </span>get<span class="w"> </span>pods,pvc,services
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>kubectl<span class="w"> </span>--kubeconfig<span class="w"> </span>.local/kubeconfig<span class="w"> </span>-n<span class="w"> </span>monitoring<span class="w"> </span>get<span class="w"> </span>prometheus,alertmanager
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>make<span class="w"> </span>verify
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>kubectl<span class="w"> </span>--kubeconfig<span class="w"> </span>.local/kubeconfig<span class="w"> </span>-n<span class="w"> </span>monitoring<span class="w"> </span>get<span class="w"> </span>pods,pvc,services
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>kubectl<span class="w"> </span>--kubeconfig<span class="w"> </span>.local/kubeconfig<span class="w"> </span>-n<span class="w"> </span>monitoring<span class="w"> </span>get<span class="w"> </span>prometheus,alertmanager
 </code></pre></div>
 <p>Expect private ClusterIP services, three Bound persistent claims, ready operator
 and exporters, and ready Prometheus/Alertmanager instances. Inspect Prometheus
@@ -1105,8 +1226,8 @@ migration; PVC storage class and many volume fields are immutable.</p>
 <td>Review upstream migrations and current field ownership; do not force conflicts blindly</td>
 </tr>
 <tr>
-<td>Data disappeared after VM replacement</td>
-<td>Local-path data is on the old VM disk; restore from off-host backup</td>
+<td>Data unavailable after VM replacement</td>
+<td>Check the retained data disk mount and original node name; restore from off-host backup if hardware failed</td>
 </tr>
 <tr>
 <td>Old Grafana password still works</td>

@@ -982,7 +982,7 @@
 
 <h1 id="threat-model">Threat Model</h1>
 <p>This lab assumes a trusted administrator workstation, a private trusted node
-network, a patched Proxmox host, and Ubuntu/GitHub/Helm artifacts obtained through
+network, a patched Ubuntu KVM host, and Ubuntu/GitHub/Helm artifacts obtained through
 verified TLS and pinned checksums where supported.</p>
 <h2 id="what-the-baseline-addresses">What the Baseline Addresses</h2>
 <table>
@@ -999,11 +999,11 @@ verified TLS and pinned checksums where supported.</p>
 </tr>
 <tr>
 <td>Accidental network exposure</td>
-<td>Default-drop VM ingress, explicit administrator CIDRs, no public monitoring services</td>
+<td>Default-drop VM input, private NAT, LAN proxy ACLs, MFA-protected dashboards</td>
 </tr>
 <tr>
 <td>Man-in-the-middle administration</td>
-<td>Proxmox CA trust, verified SSH host keys, Kubernetes CA validation, secure worker join token</td>
+<td>Verified host/guest SSH keys, Kubernetes CA validation, internal HTTPS, secure worker join</td>
 </tr>
 <tr>
 <td>Configuration drift</td>
@@ -1022,12 +1022,14 @@ verified TLS and pinned checksums where supported.</p>
 <h2 id="what-remains-an-operator-responsibility">What Remains an Operator Responsibility</h2>
 <p>One machine cannot provide physical high availability. Its NVMe disk and local
 volumes are not replicated. Scheduled local etcd snapshots are not off-host
-backups. A compromised administrator key, Proxmox host, or cluster-admin
+backups. A compromised administrator key, Ubuntu KVM host, or cluster-admin
 kubeconfig can control the lab.</p>
-<p>Desktop increases the guest package and GUI attack surface. Node-exporter needs
+<p>Desktop remains only on the physical host. Node-exporter needs
 host inspection; its namespace permits privileged pod security. VXLAN traffic is
 private-network traffic, not an encrypted overlay. The cluster does not claim
-default-deny pod-to-pod policy or application-level authentication.</p>
+universal default-deny policy for arbitrary future workloads. The platform
+namespace has explicit network restrictions and the declared dashboards require
+Authelia MFA; new application namespaces need their own policies.</p>
 <p>Do not publish workloads until you have designed namespace RBAC, appropriate
 NetworkPolicies, ingress TLS/authentication, dependency updates, and application
 backup/restore. PodSecurityPolicy is removed from modern Kubernetes; use Pod

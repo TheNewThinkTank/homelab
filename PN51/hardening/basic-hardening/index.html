@@ -987,27 +987,28 @@ filtering, package-upgrade, and service behavior conflict with this design.</p>
 <h2 id="enforced-state">Enforced State</h2>
 <ul>
 <li>Ubuntu 26.04 x86-64 guest and minimum-memory assertions, after cloud-init.</li>
-<li>Full Desktop, OpenSSH, AppArmor, guest agent, and security-update packages.</li>
+<li>Lean server packages, OpenSSH, AppArmor, guest agent, and security updates.</li>
 <li>Public-key SSH only, no root SSH, low authentication-attempt limit, early
     drop-in precedence, and configuration validation before a conditional reload.</li>
 <li>Root-only K3s config/token and administrator kubeconfig; no token in systemd
     arguments or Terraform state.</li>
 <li>Persisted bridge-netfilter/overlay modules, forwarding enabled, and CNI-safe
     reverse-path filtering. Kubernetes kernel-protection defaults are explicit.</li>
-<li>Swap removed from active state and fstab; desktop sleep/suspend targets masked.</li>
+<li>Swap removed from active state and fstab; sleep/suspend targets masked.</li>
 <li>Security updates enabled without automatic reboots.</li>
-<li>Desktop graphical target enabled; optional vaulted console password hash does
-    not enable password SSH.</li>
+<li>Server boot target and a separate protected ext4 data disk; existing signatures
+    are checked before a blank disk is formatted.</li>
 </ul>
-<p>VM ingress is enforced by Proxmox, not by duplicating iptables policy with guest
-UFW. Keep the datacenter firewall active and validate the boundary from another
-machine. AppArmor remains enabled; this is not a CIS certification claim.</p>
+<p>VM ingress uses a dedicated default-drop nftables input table, not guest UFW or
+a flush of Kubernetes forwarding tables. Retained storage and etcd snapshots
+use the data disk. Validate network boundaries from another machine. AppArmor
+remains enabled; this is not a CIS certification claim.</p>
 <h2 id="how-to-verify-the-baseline">How to Verify the Baseline</h2>
-<p>Run <code>make configure</code>, inspect the guests' Desktop consoles, then run
+<p>Run <code>make configure</code>, inspect the guest services and data mounts, then run
 <code>make verify</code> and <code>make idempotence</code>. On each guest, inspect SSH's effective
 configuration with <code>sudo sshd -T</code>, swap with <code>swapon --show</code>, and the boot target
 with <code>systemctl get-default</code>.</p>
-<p>If networking fails, inspect the exact Proxmox rules, kernel settings, CNI pods,
+<p>If networking fails, inspect the owned nftables rules, kernel settings, CNI pods,
 and routes before adding broad allow rules. If SSH hardening fails validation,
 keep the existing verified connection open and repair the failing setting.</p>
 <p>See <a href="../../../security/">security boundaries</a>, <a href="../../../testing/">testing</a>, and

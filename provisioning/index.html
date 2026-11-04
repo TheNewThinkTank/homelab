@@ -544,10 +544,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-1-validate-the-controller" class="md-nav__link">
+  <a href="#step-1-prepare-local-tools-and-private-inputs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 1: Validate the Controller
+        Step 1: Prepare Local Tools and Private Inputs
       
     </span>
   </a>
@@ -555,10 +555,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-2-prepare-proxmox" class="md-nav__link">
+  <a href="#step-2-reconcile-the-ubuntu-host" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 2: Prepare Proxmox
+        Step 2: Reconcile the Ubuntu Host
       
     </span>
   </a>
@@ -566,10 +566,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-3-set-private-inputs-and-preview" class="md-nav__link">
+  <a href="#step-3-plan-and-create-four-vms" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 3: Set Private Inputs and Preview
+        Step 3: Plan and Create Four VMs
       
     </span>
   </a>
@@ -577,10 +577,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-4-create-vms-and-verify-ssh-identity" class="md-nav__link">
+  <a href="#step-4-verify-guest-identity-and-open-the-api-tunnel" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 4: Create VMs and Verify SSH Identity
+        Step 4: Verify Guest Identity and Open the API Tunnel
       
     </span>
   </a>
@@ -588,10 +588,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-5-create-and-back-up-the-vault" class="md-nav__link">
+  <a href="#step-5-configure-the-cluster-and-add-ons" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 5: Create and Back Up the Vault
+        Step 5: Configure the Cluster and Add-ons
       
     </span>
   </a>
@@ -599,18 +599,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#step-6-configure-desktop-kubernetes-and-monitoring" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Step 6: Configure Desktop, Kubernetes, and Monitoring
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Step 6: Configure Desktop, Kubernetes, and Monitoring">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
   <a href="#optional-guest-dotfiles" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -620,17 +608,12 @@
   </a>
   
 </li>
-        
-      </ul>
-    </nav>
-  
-</li>
       
         <li class="md-nav__item">
-  <a href="#step-7-accept-the-installation" class="md-nav__link">
+  <a href="#step-6-retire-the-legacy-host-cluster-and-publish-ingress" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 7: Accept the Installation
+        Step 6: Retire the Legacy Host Cluster and Publish Ingress
       
     </span>
   </a>
@@ -642,17 +625,6 @@
     <span class="md-ellipsis">
       
         Troubleshooting
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#what-you-built" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What You Built
       
     </span>
   </a>
@@ -1081,176 +1053,136 @@
 
 
 <h1 id="build-the-four-vm-lab">Build the Four-VM Lab</h1>
-<p>This tutorial starts with a prepared Proxmox host and ends with four Ubuntu
-Desktop VMs, K3s, and private Prometheus/Grafana services. No step below is run
-automatically by CI. Commands are run on your trusted administrator workstation.</p>
+<p>Keep Ubuntu Desktop 26.04 LTS on the PN51. Terraform creates four Ubuntu Server
+VMs on native KVM/libvirt; Ansible configures K3s, retained storage, monitoring,
+Authelia, Headlamp, and protected HTTPS ingress.</p>
+<p><strong>All Make commands below run from this repository on the Mac controller.</strong> A
+PN51 root shell is not the controller and does not contain this Makefile. No Mac
+packages, shell files, routes, DNS settings, or trust-store changes are made.
+Generated controller files stay under this repo's ignored <code>.local</code> directory.</p>
 <h2 id="what-you-need">What You Need</h2>
 <ul>
 <li>PN51 with 32 GiB RAM, sufficient free NVMe capacity, AMD virtualization enabled,
-  and reliable wired networking.</li>
-<li>Proxmox VE 9 installed and patched, with a working private bridge. Back up the
-  current PN51 before installing it: installation can erase existing disks.</li>
-<li>Four unused VM IDs and four reserved IPv4 addresses outside the DHCP pool.</li>
-<li>A trusted Proxmox HTTPS certificate or its CA installed on the controller.</li>
-<li>Terraform 1.10+, uv, Helm 3, kubectl compatible with the pinned Kubernetes
-  minor, OpenSSH, Git, and Make. Gitleaks and actionlint are useful for CI checks.</li>
-<li>An existing SSH key loaded into <code>ssh-agent</code>. Keep its private half outside
-  this repository.</li>
+  and a working <code>ssh pn51</code> alias with an already verified host key.</li>
+<li>Ubuntu host sudo authentication supplied directly in a terminal. Ubuntu 26.04
+  uses sudo-rs; do not add unsupported <code>timestamp_type</code> settings or passwordless
+  host sudo just to automate setup.</li>
+<li>Existing Terraform 1.10+, uv, Helm 3, a compatible kubectl, OpenSSH, Git, and
+  Make on the controller. No Homebrew or global Mac installation is part of this
+  workflow.</li>
+<li>An existing PN51 SSH key; only its public half enters Terraform/cloud-init.</li>
+<li>A non-overlapping private subnet. The default <code>10.51.0.0/24</code> NAT network works
+  over the PN51's existing Wi-Fi without replacing its LAN connection.</li>
 </ul>
-<p>The sibling dotfiles project is the source of truth for your workstation and
-guest user environment. Its macOS workstation setup includes Terraform, uv,
-Ansible, Helm 3, kubectl, Gitleaks, and actionlint. From the homelab checkout:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nb">cd</span><span class="w"> </span>../dotfiles
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>./bootstrap.sh<span class="w"> </span>--platform<span class="w"> </span>macos<span class="w"> </span>--profile<span class="w"> </span>personal<span class="w"> </span>--dry-run
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>./bootstrap.sh<span class="w"> </span>--platform<span class="w"> </span>macos<span class="w"> </span>--profile<span class="w"> </span>personal
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="nb">cd</span><span class="w"> </span>../homelab
+<p>The live audit found Ubuntu 26.04.1, a Ryzen 7 5700U, about 31 GiB usable RAM,
+and Wi-Fi address <code>192.168.1.20</code>. Reserve that address on the router or update
+the SSH alias and <code>lab_domain</code> deliberately. No router configuration is changed
+automatically.</p>
+<h2 id="step-1-prepare-local-tools-and-private-inputs">Step 1: Prepare Local Tools and Private Inputs</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>make<span class="w"> </span>setup
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>make<span class="w"> </span>init-local
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>make<span class="w"> </span>check
 </code></pre></div>
-<p>Review and confirm its plan; this is your normal full MacBook setup, not a
-reduced VM package installation. Use the work profile when appropriate. If you
-already manage the controller with dotfiles, do not reinstall it just to run
-homelab: check the required executable versions and run <code>make setup</code> here.</p>
-<p>If an old Helm 4 binary shadows Helm 3, fix PATH before continuing. Check
-<code>helm version --short</code> and <code>kubectl version --client</code> against the
-<a href="../reference/#versions-and-artifacts">version reference</a>.</p>
-<h2 id="step-1-validate-the-controller">Step 1: Validate the Controller</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>make<span class="w"> </span>setup
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>make<span class="w"> </span>check
+<p><code>init-local</code> discovers the existing SSH public key, writes private Terraform
+inputs, generates an encrypted vault and private vault-password file, and creates
+an internal CA/certificate. It reuses existing credentials and PKI instead of
+silently regenerating cluster identity. The ISO helper and Python dependencies
+are installed only in the repo's virtual environment.</p>
+<p>The vault password, private TLS keys, kubeconfig, and state are sensitive even
+though Git ignores them. Back them up securely and store the vault password
+separately in a password manager. TLS downloads use verified system trust and
+pinned SHA-256 checks; never use insecure TLS flags.</p>
+<h2 id="step-2-reconcile-the-ubuntu-host">Step 2: Reconcile the Ubuntu Host</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>make<span class="w"> </span>host
 </code></pre></div>
-<p>These commands do not need a vault, Proxmox token, or reachable VMs. You should
-see nine passing Terraform mock tests, Python regressions, four local template
-checks, a real Helm render, and a strict documentation build.</p>
-<p>If collection installation reports <code>CERTIFICATE_VERIFY_FAILED</code>, use a verified
-host CA bundle, for example on macOS:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nv">SSL_CERT_FILE</span><span class="o">=</span>/etc/ssl/cert.pem<span class="w"> </span><span class="nv">UV_SYSTEM_CERTS</span><span class="o">=</span><span class="nb">true</span><span class="w"> </span>make<span class="w"> </span>setup
+<p>Enter the PN51 password at <code>BECOME password:</code> in the local task terminal, never
+in chat. This installs KVM/libvirt and cloud-image tools, grants <code>gus</code> access to
+system libvirt, allows guest NAT egress through UFW, and prevents host suspend.
+It does not reinstall Ubuntu or stop the existing host-native K3s cluster.
+New SSH sessions pick up the libvirt group membership.</p>
+<p>The VM storage directory is owned by QEMU and the privileged libvirt group with
+mode 0750; unrelated host users cannot read the guest disks. Reconcile the host
+role before storing cluster credentials.</p>
+<p>The host role selects <code>qemu-system-x86</code> explicitly. Ubuntu 26.04's <code>qemu-kvm</code>
+is a virtual package with multiple providers, not an installable candidate.</p>
+<p>Host automation explicitly uses the already installed <code>/usr/bin/sudo.ws</code>.
+Ubuntu's sudo-rs wraps custom prompts, which Ansible 2.20 does not recognize;
+this otherwise times out during fact gathering. The override is only in the
+host inventory, does not change sudo policy or the default executable, and does
+not affect guest passwordless sudo.</p>
+<h2 id="step-3-plan-and-create-four-vms">Step 3: Plan and Create Four VMs</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>make<span class="w"> </span>plan
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>make<span class="w"> </span>apply
 </code></pre></div>
-<p>Do not bypass certificate verification. If your organization's CA is absent,
-install it through the operating system's trust workflow first.</p>
-<h2 id="step-2-prepare-proxmox">Step 2: Prepare Proxmox</h2>
-<p>In the Proxmox UI, confirm the node name, bridge, and storage identifiers.
-The disk datastore must support VM disks. Enable <strong>Import</strong> content on the
-file-backed image datastore; the Terraform image uses a <code>.qcow2</code> filename.</p>
-<p>Enable the <strong>datacenter firewall</strong> and verify that it is active. Preserve a
-working Proxmox console and management rule before changing host-level firewall
-policy. Terraform only manages the four new VM firewalls, never datacenter or
-host firewall rules. A VM firewall flag alone is not sufficient when the
-datacenter firewall is disabled.</p>
-<p>Create a dedicated, privilege-separated API token for Terraform. Grant VM
-allocation, audit, power, console, and configuration permissions for the reserved
-VM IDs, and allocation/audit permissions on the chosen datastores and bridge.
-The provider's <code>download-url</code> endpoint also needs <code>Sys.Audit</code>, <code>Sys.Modify</code>, and
-<code>Datastore.AllocateTemplate</code>; review those host-level privileges explicitly.
-Do not use the root password or a permanent unrestricted Administrator token.
-Remove bootstrap-only image-download privileges after initial provisioning if
-your operational policy requires it; re-grant or import the existing image when
-rebuilding from empty state.</p>
-<p>The token owner and privilege-separated token both need the applicable ACLs.
-A 403 is a permissions problem, not a reason to disable TLS. See the provider's
-<a href="https://registry.terraform.io/providers/bpg/proxmox/0.116.1/docs">authentication documentation</a>
-and Proxmox's
-<a href="https://pve.proxmox.com/pve-docs/pve-admin-guide.html#pveum_permission_management">permission model</a>.
-Exact ACLs must be validated on your host; offline tests cannot prove them.</p>
-<h2 id="step-3-set-private-inputs-and-preview">Step 3: Set Private Inputs and Preview</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>cp<span class="w"> </span>pn51/terraform/terraform.tfvars.example<span class="w"> </span>pn51/terraform/terraform.tfvars
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>pn51/terraform/terraform.tfvars
+<p>The plan should contain only this lab's pool, NAT network, pinned image, four
+cloud-init seeds, four root disks, four protected data disks, and four domains.
+Each guest gets two vCPUs and 4 GiB RAM, leaving about half the host's RAM for
+Ubuntu Desktop. Root and data disks are sparse 64 GiB qcow2 volumes.</p>
+<p>Terraform confirmation is retained. Do not apply unexpected deletions or
+control-plane replacement. <code>prevent_destroy</code> on data disks deliberately blocks
+a full destroy; it is not a substitute for off-host backups.</p>
+<p>The domain transform declares concrete disk file paths and the qcow2 backing
+chain so libvirt can apply its security labeling. The repo-local ISO helper
+emits the pinned provider's legacy primary filenames as well as the normal guest
+filenames. Guest link-local addresses remain computed observations; cloud-init
+owns the declared static IPv4 addresses.</p>
+<h2 id="step-4-verify-guest-identity-and-open-the-api-tunnel">Step 4: Verify Guest Identity and Open the API Tunnel</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>make<span class="w"> </span>trust-guest-keys
 </code></pre></div>
-<p>Edit the private copy. Set your real LAN, gateway, trusted administrator <code>/32</code>
-or subnet, Proxmox node, datastores, and SSH public key. Example addresses are not
-network discovery. The default pod/service networks must also be distinct from
-your VPN and other routed networks.</p>
-<p>Load the endpoint and token into your current controller session. The following
-prompts for the credential without storing it in shell history; do not run it
-with shell tracing enabled:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PROXMOX_VE_ENDPOINT</span><span class="o">=</span><span class="s1">&#39;https://YOUR-VERIFIED-PROXMOX-HOST:8006/&#39;</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PROXMOX_VE_API_TOKEN</span><span class="o">=</span><span class="s2">&quot;</span><span class="k">$(</span>uv<span class="w"> </span>run<span class="w"> </span>--frozen<span class="w"> </span>python<span class="w"> </span>-c<span class="w"> </span><span class="err">&#39;</span>import<span class="w"> </span>getpass<span class="p">;</span><span class="w"> </span>print<span class="o">(</span>getpass.getpass<span class="o">(</span><span class="s2">&quot;Proxmox API token: &quot;</span><span class="k">)</span><span class="s2">))&quot;</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>make<span class="w"> </span>plan
+<p>The helper reads public guest SSH keys through the authenticated PN51 libvirt
+guest agent, checks declared MAC identities, and writes <code>.local/known_hosts</code>.
+It does not trust unauthenticated keyscan output or change the Mac's global
+known-hosts file. Cloud-init supplies key-only SSH and passwordless guest sudo
+to the protected <code>ubuntu</code> automation account.</p>
+<p>In another local terminal, keep this running:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>make<span class="w"> </span>tunnel
 </code></pre></div>
-<p>The token format is <code>user@realm!token-id=secret</code>. A password manager can populate
-the same environment variable instead. Do not put this token in tfvars, a
-committed <code>.env</code>, a screenshot, a support transcript, or GitHub Actions secrets.</p>
-<p>Inspect the plan: it should create four VMs, the base-image import, and their VM
-firewall resources. It must not modify the existing host or unrelated VMs.</p>
-<h2 id="step-4-create-vms-and-verify-ssh-identity">Step 4: Create VMs and Verify SSH Identity</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>make<span class="w"> </span>apply
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>make<span class="w"> </span>inventory
+<p>The Kubernetes API is forwarded only to <code>127.0.0.1:16443</code>. No controller route
+or global kubeconfig is changed. Keep the tunnel open for configure, verification,
+Helm operations, and worker replacement.</p>
+<p>The tunnel sends SSH keepalives every 30 seconds. If the SSH connection exits
+after a network interruption, restart <code>make tunnel</code> before using the private API.</p>
+<h2 id="step-5-configure-the-cluster-and-add-ons">Step 5: Configure the Cluster and Add-ons</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>make<span class="w"> </span>configure
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>make<span class="w"> </span>verify
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>make<span class="w"> </span>idempotence
 </code></pre></div>
-<p>Confirm Terraform's plan interactively. It downloads the fixed Ubuntu image,
-checks its SHA-256, and creates each guest with static networking and your public
-key. Terraform does not wait for guest-agent installation: the first Ansible run
-installs and starts it after SSH becomes available.</p>
-<p>For each VM, use the <strong>Proxmox console</strong> to read its SSH host fingerprint:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>ssh-keygen<span class="w"> </span>-lf<span class="w"> </span>/etc/ssh/ssh_host_ed25519_key.pub
+<p>Ansible waits for cloud-init, checks that targets are Ubuntu server VMs, mounts
+the retained data disks, hardens SSH/kernel settings, and installs K3s. Workers
+join serially with a CA-pinned token. Monitoring and Authelia use the dedicated
+<code>homelab-retained</code> storage class under <code>/srv/homelab-data/storage</code>.</p>
+<p>The controller reconciles Prometheus CRDs, vaulted Secrets, the pinned monitoring
+chart, the pinned Argo CD bootstrap, Homepage, Authelia, Headlamp, ingress, and
+network policies. Argo CD receives no Application automatically and its project
+is limited to the reviewed repository and application namespace. Secret values are not
+stored in Terraform or Helm values. <code>verify</code> checks four Ready nodes, versions,
+workload health, retained PVCs, scrape targets, and essential system add-ons.
+<code>idempotence</code> requires a full second guest run with zero changes or hidden failures.</p>
+<p>Homepage is the authenticated service landing page. Argo CD retains its own
+administrator login behind Authelia MFA; retrieve its initial credential only
+through the <a href="../observability/#argo-cd-access">documented trusted-terminal workflow</a>.
+Review <a href="../gitops/">GitOps ownership</a> before enabling an Application.</p>
+<h2 id="optional-guest-dotfiles">Optional Guest Dotfiles</h2>
+<p>Guest dotfiles remain opt-in and come from the pinned public sibling project's
+published commit, never copied controller files or mutable branches:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>make<span class="w"> </span>configure<span class="w"> </span><span class="nv">CONFIG_FILE</span><span class="o">=</span>.local/config.yml
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>make<span class="w"> </span>idempotence<span class="w"> </span><span class="nv">CONFIG_FILE</span><span class="o">=</span>.local/config.yml
 </code></pre></div>
-<p>From your controller, connect as <code>ubuntu</code> and compare that fingerprint before
-accepting it into <code>known_hosts</code>. Do not use <code>StrictHostKeyChecking=no</code>, and do not
-trust an unauthenticated <code>ssh-keyscan</code> by itself. Cloud-init supplies
-passwordless sudo for this automation account; protect the corresponding key.</p>
-<p>Check trusted connectivity after accepting all four identities:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>uv<span class="w"> </span>run<span class="w"> </span>--frozen<span class="w"> </span>ansible<span class="w"> </span>k3s_cluster<span class="w"> </span>-m<span class="w"> </span>ansible.builtin.ping
+<p>Review <code>pn51/ansible/config.example.yml</code> before preparing the private config.
+This role installs only the lightweight guest package set and user environment;
+it does not configure the Mac. Use the same config file for both reconciliation
+and idempotence.</p>
+<h2 id="step-6-retire-the-legacy-host-cluster-and-publish-ingress">Step 6: Retire the Legacy Host Cluster and Publish Ingress</h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>make<span class="w"> </span>cutover<span class="w"> </span><span class="nv">CONFIRM</span><span class="o">=</span>retire-host-k3s
 </code></pre></div>
-<h2 id="step-5-create-and-back-up-the-vault">Step 5: Create and Back Up the Vault</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>make<span class="w"> </span>vault
-</code></pre></div>
-<p>Type the vault password directly into the terminal. The helper creates a random
-K3s server token and Grafana password, passes them to <code>ansible-vault</code> through
-stdin, and writes only encrypted output to <code>.local/vault.yml</code> with mode 0600.
-It refuses to overwrite an existing vault. Store the password separately in a
-password manager and back up the encrypted file off-host before configuring K3s.</p>
-<p>For desktop console login, edit the vault and add <code>desktop_password_hash</code> as a
-quoted SHA-512-crypt or yescrypt hash:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>uv<span class="w"> </span>run<span class="w"> </span>--frozen<span class="w"> </span>ansible-vault<span class="w"> </span>edit<span class="w"> </span>.local/vault.yml
-</code></pre></div>
-<p>Generate the hash with a trusted local password tool such as <code>mkpasswd</code> and enter
-the password interactively. Never use a plaintext password or Terraform password
-input. Use the vault editor on a trusted workstation; editor swap and recovery
-files can contain decrypted data. Omit the field to keep console login locked.</p>
-<h2 id="step-6-configure-desktop-kubernetes-and-monitoring">Step 6: Configure Desktop, Kubernetes, and Monitoring</h2>
-<h3 id="optional-guest-dotfiles">Optional Guest Dotfiles</h3>
-<p>Dotfiles deployment is disabled by default. The example pins the published
-dotfiles commit <code>b703d09fe26c5bd7e9daac92450f3c313a4c7c6a</code>, which includes the
-homelab package set, configuration checks, and official kubectl assets. Its
-<a href="https://github.com/TheNewThinkTank/dotfiles/actions/runs/38935900511">published CI run</a>
-passed. Keep a reviewed full commit SHA, never <code>main</code> or <code>HEAD</code>. Uncommitted
-sibling changes are deliberately not copied onto guests.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>cp<span class="w"> </span>pn51/ansible/config.example.yml<span class="w"> </span>.local/config.yml
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>.local/config.yml
-</code></pre></div>
-<p>Review the private copy and its personal/work profile selection. The pinned
-commit is ready to use. The role uses the public dotfiles Git URL, deploys as <code>ubuntu</code>, and reads
-its lightweight package list and checksum-pinned kubectl from that revision.
-System hardening, Desktop installation, K3s, and monitoring remain homelab-owned.
-Your controller's private environment, SSH keys, and administrator kubeconfig are
-never copied to the guests. GNOME shortcuts remain a separate interactive choice.</p>
-<p>Enable the integration with:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>make<span class="w"> </span>configure<span class="w"> </span><span class="nv">CONFIG_FILE</span><span class="o">=</span>.local/config.yml
-</code></pre></div>
-<p>Use the same <code>CONFIG_FILE</code> for later configuration and idempotence checks. To
-keep the original cluster-only setup, omit it:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>make<span class="w"> </span>configure
-</code></pre></div>
-<p>The playbook validates that all targets are Ubuntu 26.04 x86-64 VMs. It waits for
-cloud-init before apt, installs full Desktop, disables sleep and swap, configures
-SSH and kernel settings, then starts K3s on the server and joins workers
-serially. The first Desktop installation can take several minutes per guest.</p>
-<p>The server's administrator kubeconfig is copied to <code>.local/kubeconfig</code> with mode
-0600 and a TLS-verified external endpoint. The controller then reconciles the
-chart's CRDs and Grafana Secret and installs the monitoring chart atomically.
-The token never enters a service command line or Terraform state.</p>
-<h2 id="step-7-accept-the-installation">Step 7: Accept the Installation</h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>make<span class="w"> </span>verify
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>make<span class="w"> </span>idempotence
-</code></pre></div>
-<p>With guest dotfiles enabled, use
-<code>make idempotence CONFIG_FILE=.local/config.yml</code> so both runs cover that role.
-<code>make kube-shell</code> opens an interactive controller shell with only this lab's
-private kubeconfig selected. Leaving that shell restores your original context;
-it does not change your global shell files or copy credentials to a VM.</p>
-<p><code>verify</code> checks the exact four node identities and K3s versions, Ready status,
-monitoring workloads, Bound persistent volumes, Grafana database health,
-Prometheus scrape targets, and the chart's Helm test. <code>idempotence</code> performs a
-normal run followed by a full second run that must report zero changes and no
-hidden failures on all four hosts. It can prompt for the vault password twice.</p>
-<p>Use <a href="../observability/">monitoring access</a> for loopback-only port forwarding.
-Before using real workloads, configure and test <a href="../operations/">off-host backups</a>.</p>
+<p>This first runs live cluster checks, cold-archives the old host cluster, verifies
+an off-host copy under <code>.local/backups/legacy-k3s</code>, then enables HAProxy forwarding
+to the VM ingress. The legacy files remain for rollback. Old application data is
+preserved in the archive, not silently imported or discarded.</p>
+<p>Read <a href="../operations/#legacy-cutover-and-rollback">legacy cutover and rollback</a>
+before confirming. Review any non-default old PV storage separately. After
+cutover, use <a href="../observability/">the service access guide</a> to enroll Authelia MFA
+and obtain a short-lived, read-only Headlamp token in your own terminal.</p>
 <h2 id="troubleshooting">Troubleshooting</h2>
 <table>
 <thead>
@@ -1261,44 +1193,42 @@ Before using real workloads, configure and test <a href="../operations/">off-hos
 </thead>
 <tbody>
 <tr>
-<td>Proxmox returns 403</td>
-<td>Inspect token-owner and token ACLs, storage permissions, and download privileges</td>
+<td>No rule for <code>make host</code></td>
+<td>Run from this repo on the Mac, not the PN51 root shell</td>
 </tr>
 <tr>
-<td>Import fails</td>
-<td>Enable Import content and check free space, filename, checksum, and Proxmox version</td>
+<td>Remote libvirt socket unavailable</td>
+<td>Complete <code>make host</code>, then open a fresh SSH session for group membership</td>
 </tr>
 <tr>
-<td>SSH host key is unknown</td>
-<td>Compare through the Proxmox console; accept only the verified fingerprint</td>
+<td>Unknown guest SSH key</td>
+<td>Run <code>make trust-guest-keys</code>; never disable host-key checking</td>
+</tr>
+<tr>
+<td>API endpoint unavailable</td>
+<td>Keep <code>make tunnel</code> running and check local port 16443</td>
 </tr>
 <tr>
 <td>Cloud-init fails or apt is locked</td>
 <td>Inspect <code>cloud-init status --long</code> and its logs; do not delete apt lockfiles</td>
 </tr>
 <tr>
-<td>A target is not Ubuntu 26.04</td>
-<td>Stop and correct the image/inventory; do not weaken the assertion</td>
-</tr>
-<tr>
-<td>Worker name already exists</td>
-<td>Use the guarded replacement procedure, not forced node-password deletion</td>
-</tr>
-<tr>
 <td>Token mismatch</td>
 <td>Restore the original vault; do not invent a new token for the old datastore</td>
 </tr>
 <tr>
-<td>Monitoring stays Pending</td>
-<td>Check PVC binding, worker RAM/disk, local-path provisioner, and pod events</td>
+<td>PVC stays Pending</td>
+<td>Check the retained storage class, protected disk mount, node affinity, and pod events</td>
+</tr>
+<tr>
+<td>Browser certificate warning</td>
+<td>The internal CA is not installed into the Mac trust store automatically</td>
 </tr>
 </tbody>
 </table>
-<h2 id="what-you-built">What You Built</h2>
-<p>You have four declaratively managed Desktop VMs, a private K3s cluster, and
-persistent monitoring. Continue with <a href="../operations/">operations</a>,
-<a href="../security/">security</a>, and <a href="../reference/">the reference</a>. The live gates are
-what establish that this works on your actual PN51; offline CI alone does not.</p>
+<p>Offline checks validate declarations, not a completed live migration. Only live
+verification, repeated convergence, and tested data recovery establish that the
+PN51 is rebuildable.</p>
 
 
 

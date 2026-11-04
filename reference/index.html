@@ -944,6 +944,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#gitops-bootstrap-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GitOps Bootstrap Settings
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#optional-dotfiles" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1061,9 +1072,9 @@ and local-artifact paths depend on that working directory.</p>
 </thead>
 <tbody>
 <tr>
-<td>Proxmox VE</td>
-<td>9.x prerequisite</td>
-<td>Existing hypervisor; not installed by automation</td>
+<td>Host</td>
+<td>Ubuntu Desktop 26.04 LTS</td>
+<td>Ansible-managed KVM/libvirt</td>
 </tr>
 <tr>
 <td>Terraform</td>
@@ -1071,8 +1082,8 @@ and local-artifact paths depend on that working directory.</p>
 <td>Terraform required-version constraint</td>
 </tr>
 <tr>
-<td>Proxmox provider</td>
-<td><code>bpg/proxmox</code> <code>0.116.1</code></td>
+<td>libvirt provider</td>
+<td><code>dmacvicar/libvirt</code> <code>0.8.3</code></td>
 <td>Terraform versions and provider lockfile</td>
 </tr>
 <tr>
@@ -1081,9 +1092,9 @@ and local-artifact paths depend on that working directory.</p>
 <td>Terraform image URL and SHA-256</td>
 </tr>
 <tr>
-<td>Desktop</td>
-<td>Full <code>ubuntu-desktop</code> metapackage</td>
-<td>Baseline role; current packages from Ubuntu repositories</td>
+<td>Guests</td>
+<td>Ubuntu Server, no desktop installation</td>
+<td>Cloud-init and guest baseline role</td>
 </tr>
 <tr>
 <td>K3s</td>
@@ -1099,6 +1110,26 @@ and local-artifact paths depend on that working directory.</p>
 <td>Monitoring chart</td>
 <td><code>92.9.0</code></td>
 <td>Ansible group variables; archive SHA-256</td>
+</tr>
+<tr>
+<td>Authelia</td>
+<td><code>4.39.15</code></td>
+<td>Ansible group variables</td>
+</tr>
+<tr>
+<td>Headlamp</td>
+<td><code>v0.35.0</code></td>
+<td>Ansible group variables</td>
+</tr>
+<tr>
+<td>Homepage</td>
+<td><code>v2.7.0</code></td>
+<td>Ansible group variables; declarative platform config</td>
+</tr>
+<tr>
+<td>Argo CD</td>
+<td>Chart <code>10.11.7</code>, app <code>v3.5.7</code></td>
+<td>Official chart SHA-256 pin; Ansible bootstrap role</td>
 </tr>
 <tr>
 <td>Python</td>
@@ -1122,9 +1153,9 @@ updates. Ubuntu's package repositories evolve; package installation is
 convergent, not a bit-for-bit image build. Review and update version/checksum
 pairs together, commit lockfiles, then run all tests and the live gates.</p>
 <h2 id="terraform-inputs">Terraform Inputs</h2>
-<p>Copy the example into ignored <code>pn51/terraform/terraform.tfvars</code> and replace its
-public-key placeholder. It is deliberately invalid until a real public key is
-provided.</p>
+<p><code>make init-local</code> writes ignored <code>.local/terraform.tfvars.json</code> using the
+existing PN51 SSH public key. Make passes that file explicitly. The committed
+example documents overrides and deliberately contains no real key.</p>
 <table>
 <thead>
 <tr>
@@ -1136,28 +1167,28 @@ provided.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>proxmox_node</code></td>
+<td><code>libvirt_uri</code></td>
 <td>string</td>
-<td>required</td>
-<td>Existing Proxmox node name</td>
+<td><code>qemu+ssh://gus@pn51/system</code></td>
+<td>Remote system libvirt over the existing SSH identity</td>
+</tr>
+<tr>
+<td><code>host_ssh_alias</code></td>
+<td>string</td>
+<td><code>pn51</code></td>
+<td>Verified jump-host alias</td>
 </tr>
 <tr>
 <td><code>network_cidr</code></td>
 <td>string</td>
-<td>required</td>
-<td>Canonical IPv4 LAN/VLAN subnet</td>
+<td><code>10.51.0.0/24</code></td>
+<td>Dedicated canonical IPv4 NAT /24</td>
 </tr>
 <tr>
 <td><code>gateway</code></td>
 <td>string</td>
-<td>required</td>
-<td>Usable address inside the node subnet</td>
-</tr>
-<tr>
-<td><code>admin_cidrs</code></td>
-<td>set(string)</td>
-<td>required</td>
-<td>Trusted IPv4 networks; no <code>/0</code></td>
+<td><code>10.51.0.1</code></td>
+<td>Subnet's first usable address</td>
 </tr>
 <tr>
 <td><code>ssh_public_keys</code></td>
@@ -1166,34 +1197,10 @@ provided.</p>
 <td>OpenSSH public keys, not paths or private keys</td>
 </tr>
 <tr>
-<td><code>vm_datastore</code></td>
-<td>string</td>
-<td><code>local-lvm</code></td>
-<td>Supports VM and cloud-init disks</td>
-</tr>
-<tr>
-<td><code>image_datastore</code></td>
-<td>string</td>
-<td><code>local</code></td>
-<td>File-backed; enable Import content</td>
-</tr>
-<tr>
-<td><code>bridge</code></td>
-<td>string</td>
-<td><code>vmbr0</code></td>
-<td>Pre-existing private bridge</td>
-</tr>
-<tr>
 <td><code>cluster_name</code></td>
 <td>string</td>
 <td><code>pn51</code></td>
 <td>2-32 lowercase DNS-safe characters</td>
-</tr>
-<tr>
-<td><code>vm_id_start</code></td>
-<td>number</td>
-<td><code>5100</code></td>
-<td>Integer 100-999999996; reserves four consecutive IDs</td>
 </tr>
 <tr>
 <td><code>node_ip_offset</code></td>
@@ -1210,14 +1217,32 @@ provided.</p>
 <tr>
 <td><code>vm_memory_mb</code></td>
 <td>number</td>
-<td><code>6144</code></td>
-<td>Integer, at least 6144; multiplied by four</td>
+<td><code>4096</code></td>
+<td>Integer 4096-6144; retain host RAM</td>
+</tr>
+<tr>
+<td><code>vm_vcpus</code></td>
+<td>number</td>
+<td><code>2</code></td>
+<td>Integer 2-4 per guest</td>
 </tr>
 <tr>
 <td><code>vm_disk_gb</code></td>
 <td>number</td>
-<td><code>80</code></td>
-<td>Integer, at least 48; disks cannot be shrunk safely</td>
+<td><code>64</code></td>
+<td>Sparse replaceable root disk, at least 32 GiB</td>
+</tr>
+<tr>
+<td><code>vm_data_disk_gb</code></td>
+<td>number</td>
+<td><code>64</code></td>
+<td>Protected retained data disk, at least 32 GiB</td>
+</tr>
+<tr>
+<td><code>image_path</code> / <code>image_checksum</code></td>
+<td>nullable strings</td>
+<td>pinned manifest</td>
+<td>Reviewed local path and SHA-256 overrides</td>
 </tr>
 <tr>
 <td><code>pod_cidr</code></td>
@@ -1235,11 +1260,12 @@ provided.</p>
 </table>
 <p>The node, pod, and service networks must not overlap. Check router, VPN, and
 remote-site networks too: Terraform cannot discover your external routing table.
-Keep guest addresses outside DHCP and reserve IDs before the first apply.</p>
+The private libvirt network supplies deterministic MACs and guest addresses;
+it does not reserve addresses on the physical LAN or change the Wi-Fi interface.</p>
 <p>Changing the cluster name, network identity, imported base image, or disk inputs
 can be destructive or require an explicit rebuild. Always inspect the plan.</p>
 <h3 id="outputs">Outputs</h3>
-<p><code>nodes</code> maps stable names to VM IDs, roles, and addresses. <code>ansible_inventory</code>
+<p><code>nodes</code> maps stable names to MACs, roles, and addresses. <code>ansible_inventory</code>
 contains one <code>k3s_server</code>, three <code>k3s_agents</code>, SSH username, guest Python path,
 cluster CIDRs, and the service subnet's host-10 DNS address. Neither output
 contains passwords, private keys, Kubernetes tokens, or kubeconfig data.</p>
@@ -1253,12 +1279,12 @@ contains passwords, private keys, Kubernetes tokens, or kubeconfig data.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>PROXMOX_VE_ENDPOINT</code></td>
-<td>Verified HTTPS URL, including port 8006</td>
+<td><code>UV_CACHE_DIR</code>, <code>ANSIBLE_HOME</code>, <code>TMPDIR</code></td>
+<td>Make keeps generated state inside <code>.local</code></td>
 </tr>
 <tr>
-<td><code>PROXMOX_VE_API_TOKEN</code></td>
-<td>Dedicated API credential in provider format <code>user@realm!token=secret</code></td>
+<td><code>HELM_CONFIG_HOME</code>, <code>HELM_CACHE_HOME</code>, <code>HELM_DATA_HOME</code></td>
+<td>Repo-local Helm state</td>
 </tr>
 <tr>
 <td><code>ANSIBLE_CONFIG</code></td>
@@ -1300,13 +1326,28 @@ host fingerprint instead.</p>
 <td>At least 24 characters; generated value is longer</td>
 </tr>
 <tr>
-<td><code>desktop_password_hash</code></td>
-<td>Optional SHA-512-crypt (<code>$6$</code>) or yescrypt (<code>$y$</code>) hash</td>
+<td><code>authelia_password</code></td>
+<td>Generated bootstrap password; retrieve only through a trusted terminal</td>
+</tr>
+<tr>
+<td><code>authelia_password_hash</code></td>
+<td>Argon2id hash for the file-backed administrator</td>
+</tr>
+<tr>
+<td><code>authelia_session_secret</code></td>
+<td>Random 64-character hex session key</td>
+</tr>
+<tr>
+<td><code>authelia_storage_key</code></td>
+<td>Random 64-character hex storage encryption key</td>
+</tr>
+<tr>
+<td><code>authelia_jwt_secret</code></td>
+<td>Random 64-character hex identity-validation key</td>
 </tr>
 </tbody>
 </table>
-<p>The desktop password hash enables console login only. Without it, Desktop still
-boots, but the <code>ubuntu</code> password remains locked. Grafana's secret is a bootstrap
+<p>Guest passwords remain locked. Grafana's secret is a bootstrap
 credential: changing it does not reset an already-initialized Grafana database.</p>
 <h2 id="commands">Commands</h2>
 <table>
@@ -1324,6 +1365,21 @@ credential: changing it does not reset an already-initialized Grafana database.<
 <td>No</td>
 </tr>
 <tr>
+<td><code>make init-local</code></td>
+<td>Prepare private Terraform inputs, encrypted vault, vault password, internal PKI</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>make host</code></td>
+<td>Reconcile Ubuntu KVM/libvirt, NAT egress, and host suspend policy</td>
+<td>Yes; remote sudo prompt</td>
+</tr>
+<tr>
+<td><code>make image</code></td>
+<td>Download and SHA-256-verify the pinned cloud image</td>
+<td>No</td>
+</tr>
+<tr>
 <td><code>make init</code></td>
 <td>Initialize Terraform provider/backend</td>
 <td>No mutation of VMs</td>
@@ -1331,7 +1387,7 @@ credential: changing it does not reset an already-initialized Grafana database.<
 <tr>
 <td><code>make plan</code></td>
 <td>Refresh and preview VM changes</td>
-<td>Reads Proxmox</td>
+<td>Reads remote libvirt</td>
 </tr>
 <tr>
 <td><code>make apply</code></td>
@@ -1349,9 +1405,24 @@ credential: changing it does not reset an already-initialized Grafana database.<
 <td>No</td>
 </tr>
 <tr>
+<td><code>make trust-guest-keys</code></td>
+<td>Read verified public guest SSH keys into <code>.local/known_hosts</code></td>
+<td>Reads libvirt guest agents</td>
+</tr>
+<tr>
+<td><code>make tunnel</code></td>
+<td>Keep API forwarded to localhost:16443</td>
+<td>No cluster mutation</td>
+</tr>
+<tr>
 <td><code>make configure</code></td>
-<td>Reconcile Desktop, K3s, kubeconfig, and monitoring</td>
+<td>Reconcile server guests, K3s, monitoring, Homepage, Argo CD bootstrap, authentication, and ingress</td>
 <td>Yes</td>
+</tr>
+<tr>
+<td><code>make cutover CONFIRM=retire-host-k3s</code></td>
+<td>Cold legacy backup, verified off-host copy, owned LAN ingress proxy</td>
+<td>Yes; guarded legacy outage</td>
 </tr>
 <tr>
 <td><code>make kube-shell</code></td>
@@ -1375,8 +1446,8 @@ credential: changing it does not reset an already-initialized Grafana database.<
 </tr>
 <tr>
 <td><code>make destroy</code></td>
-<td>Destroy managed VMs, disks, and image after confirmation</td>
-<td>Yes; destructive</td>
+<td>Plan full destruction; protected data disks block it</td>
+<td>Requires separate reviewed removal of protection</td>
 </tr>
 <tr>
 <td><code>make lint</code></td>
@@ -1389,8 +1460,18 @@ credential: changing it does not reset an already-initialized Grafana database.<
 <td>No</td>
 </tr>
 <tr>
+<td><code>make argocd-chart-check</code></td>
+<td>Verify official chart checksum, three CRDs, private access, and application-project scope</td>
+<td>No</td>
+</tr>
+<tr>
 <td><code>make test-templates</code></td>
 <td>Render actual Ansible templates twice for four fake guests</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>make platform-check</code></td>
+<td>Render and validate MFA, TLS, restricted pods, RBAC, and network policies</td>
 <td>No</td>
 </tr>
 <tr>
@@ -1416,13 +1497,54 @@ credential: changing it does not reset an already-initialized Grafana database.<
 </tbody>
 </table>
 <p><code>VAULT_FILE</code> defaults to <code>.local/vault.yml</code>. <code>VAULT_ARGS</code> defaults to
-<code>--ask-vault-pass</code>; a password-file workflow can use
+<code>--vault-password-file .local/vault-password</code>; an operator-managed password can use
 <code>make configure VAULT_ARGS='--vault-password-file /absolute/private/path'</code>.
 <code>CONFIG_FILE</code> is unset by default; set it to <code>.local/config.yml</code> for optional
 non-secret Ansible settings. Both configuration and idempotence runs use the same
 file. Secret values still belong in the encrypted vault, not Make arguments.
 <code>UV</code> can select a different uv executable. Do not put secret values in Make
 arguments or extra-vars strings.</p>
+<h2 id="gitops-bootstrap-settings">GitOps Bootstrap Settings</h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Contract</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>homepage_image</code></td>
+<td><code>ghcr.io/gethomepage/homepage:v2.7.0</code></td>
+<td>Version-pinned, credential-free service dashboard</td>
+</tr>
+<tr>
+<td><code>argocd_chart_version</code></td>
+<td><code>10.11.7</code></td>
+<td>Update together with its reviewed SHA-256</td>
+</tr>
+<tr>
+<td><code>argocd_namespace</code></td>
+<td><code>argocd</code></td>
+<td>Trusted bootstrap/controller namespace</td>
+</tr>
+<tr>
+<td><code>argocd_application_namespace</code></td>
+<td><code>fitness-tracker</code></td>
+<td>Only admitted application destination</td>
+</tr>
+<tr>
+<td><code>argocd_application_repository</code></td>
+<td>Public TheNewThinkTank homelab HTTPS Git URL</td>
+<td>Only admitted application source; no embedded credentials</td>
+</tr>
+</tbody>
+</table>
+<p>Argo CD's initial administrator password is generated in Kubernetes and is not
+an Ansible Vault field. Its bootstrap, CRDs, projects, and ingress remain
+Ansible/Helm-owned. See <a href="../gitops/">GitOps ownership</a> and
+<a href="../observability/">service access</a> before enabling application sync.</p>
 <h2 id="optional-dotfiles">Optional Dotfiles</h2>
 <p>The sibling dotfiles repository owns user configuration and its node package
 manifest. Homelab fetches a pinned public commit and delegates configuration to
@@ -1532,7 +1654,7 @@ run creates no new configuration backups. Full live acceptance remains required.
 </tbody>
 </table>
 <p>Grafana sidecars and chart jobs add small extra requests. The storage class is
-<code>local-path</code> unless the non-secret Ansible variable <code>monitoring_storage_class</code>
+<code>homelab-retained</code> unless the non-secret Ansible variable <code>monitoring_storage_class</code>
 selects an existing class. This does not install NFS, CSI, external storage, or
 backups for you.</p>
 <p>See <a href="../provisioning/">provisioning</a>, <a href="../operations/">operations</a>, and

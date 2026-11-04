@@ -984,11 +984,11 @@
 </tr>
 <tr>
 <td>Graphics</td>
-<td>Integrated Radeon Vega; guests use virtual displays, not GPU passthrough</td>
+<td>Integrated Radeon for the Desktop host; no guest GPU passthrough</td>
 </tr>
 <tr>
 <td>Network</td>
-<td>Gigabit Ethernet, existing private LAN or VLAN</td>
+<td>Existing Wi-Fi at 192.168.1.20; guest NAT does not replace the LAN interface</td>
 </tr>
 <tr>
 <td>Memory</td>
@@ -996,11 +996,11 @@
 </tr>
 <tr>
 <td>Storage</td>
-<td>1 TB Samsung 980 NVMe</td>
+<td>1 TB NVMe</td>
 </tr>
 <tr>
 <td>Hypervisor</td>
-<td>Proxmox VE 9 on bare metal</td>
+<td>Ansible-managed KVM/libvirt on Ubuntu Desktop 26.04 LTS</td>
 </tr>
 </tbody>
 </table>
@@ -1020,43 +1020,41 @@
 <td><code>pn51-server-1</code></td>
 <td>K3s control plane and embedded etcd</td>
 <td>2</td>
-<td>6 GiB</td>
-<td>80 GiB</td>
+<td>4 GiB</td>
+<td>64 GiB root + 64 GiB retained</td>
 </tr>
 <tr>
 <td><code>pn51-worker-1</code></td>
 <td>K3s worker</td>
 <td>2</td>
-<td>6 GiB</td>
-<td>80 GiB</td>
+<td>4 GiB</td>
+<td>64 GiB root + 64 GiB retained</td>
 </tr>
 <tr>
 <td><code>pn51-worker-2</code></td>
 <td>K3s worker</td>
 <td>2</td>
-<td>6 GiB</td>
-<td>80 GiB</td>
+<td>4 GiB</td>
+<td>64 GiB root + 64 GiB retained</td>
 </tr>
 <tr>
 <td><code>pn51-worker-3</code></td>
 <td>K3s worker</td>
 <td>2</td>
-<td>6 GiB</td>
-<td>80 GiB</td>
+<td>4 GiB</td>
+<td>64 GiB root + 64 GiB retained</td>
 </tr>
 </tbody>
 </table>
-<p>Ubuntu Desktop runs on every guest, including the control plane. The full
-<code>ubuntu-desktop</code> package installs GNOME and GDM; this is not a server-only
-installation with a misleading name. A cloud image is the reproducible starting
-point rather than an interactive ISO installer.</p>
-<p>The administrator can use Proxmox's virtual console. Console login remains
-password-locked unless a password hash is supplied through the vault. SSH uses
-your existing keys and remains password-disabled even when console login is
-enabled.</p>
-<p>The control plane is tainted to keep ordinary workloads on workers. Desktop and
-monitoring consume real resources: this baseline is appropriate for learning and
-small services, not four simultaneous heavy desktop sessions or large LLMs.</p>
+<p>Ubuntu Desktop stays on the physical host. Guests run Ubuntu Server from a
+checksummed cloud image with cloud-init networking, keys, and guest-agent
+bootstrap. No guest GUI or interactive ISO installation is needed.</p>
+<p>Administration uses verified SSH through the PN51 jump host and a loopback-only
+API tunnel. Guest password/root SSH remain disabled. Separate protected data
+disks survive worker root replacement; off-host backups are still required.</p>
+<p>The control plane is tainted to keep ordinary workloads on workers. Monitoring,
+Authelia, and Headlamp have bounded resource requests. The default leaves about
+half the host memory for Ubuntu Desktop and the hypervisor.</p>
 <p>See <a href="architecture-diagrams/">architecture</a>, <a href="../provisioning/">provisioning</a>,
 and <a href="../reference/">configuration reference</a>.</p>
 
