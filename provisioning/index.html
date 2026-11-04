@@ -1081,7 +1081,8 @@ automatically.</p>
 <h2 id="step-1-prepare-local-tools-and-private-inputs">Step 1: Prepare Local Tools and Private Inputs</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>make<span class="w"> </span>setup
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>make<span class="w"> </span>init-local
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>make<span class="w"> </span>check
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>make<span class="w"> </span>fitness-credentials
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>make<span class="w"> </span>check
 </code></pre></div>
 <p><code>init-local</code> discovers the existing SSH public key, writes private Terraform
 inputs, generates an encrypted vault and private vault-password file, and creates
@@ -1092,6 +1093,10 @@ are installed only in the repo's virtual environment.</p>
 though Git ignores them. Back them up securely and store the vault password
 separately in a password manager. TLS downloads use verified system trust and
 pinned SHA-256 checks; never use insecure TLS flags.</p>
+<p>The fitness credential step adds private app bootstrap fields without deploying
+an Application or contacting Google. If the workload is still an unreleased
+draft, run <code>make check ALLOW_UNRELEASED=1</code> here; deployment remains blocked until
+the strict <a href="../gitops/#fitness-tracker-release">application release flow</a> passes.</p>
 <h2 id="step-2-reconcile-the-ubuntu-host">Step 2: Reconcile the Ubuntu Host</h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>make<span class="w"> </span>host
 </code></pre></div>

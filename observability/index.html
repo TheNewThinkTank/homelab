@@ -757,6 +757,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#fitness-tracker-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fitness Tracker Access
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#how-to-open-grafana" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1145,6 +1156,19 @@ bootstrap. See <a href="../gitops/">GitOps ownership and the application example
 <p>Enter it in Headlamp after Authelia MFA. Do not post the token in chat or store
 it in Git. The default role cannot read Secrets or mutate cluster resources.
 Cluster-admin access is not granted by the bootstrap.</p>
+<h2 id="fitness-tracker-access">Fitness Tracker Access</h2>
+<p>Fitness-tracker is live at <code>https://fitness.pn51.192.168.1.20.sslip.io</code> after the
+approved image/manifests release synchronized through Argo CD. Anonymous HTTPS
+requests redirect to Authelia with verified lab TLS. See the
+<a href="../gitops/#fitness-tracker-release">fitness release guide</a> for updates.</p>
+<p>After Authelia MFA, the application requires its own athlete sign-in. Its
+generated password is in the encrypted vault's <code>fitness_tracker_password</code> field;
+retrieve it only through a trusted terminal or password-manager workflow, never
+in chat. The frontend keeps the backend API token server-side, and writes still
+require the athlete session, a same-origin HTTPS request, and a CSRF token.</p>
+<p>The deployment begins with empty local data. No Google Drive account, mount,
+credential, or personal archive is required. New app data persists on its 2 GiB
+retained SQLite claim; do not delete that claim to reset a failed rollout.</p>
 <h2 id="how-to-open-grafana">How to Open Grafana</h2>
 <p>In a dedicated terminal:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kubectl<span class="w"> </span>--kubeconfig<span class="w"> </span>.local/kubeconfig<span class="w"> </span>-n<span class="w"> </span>monitoring<span class="w"> </span>port-forward<span class="w"> </span><span class="se">\</span>

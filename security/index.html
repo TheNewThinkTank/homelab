@@ -830,6 +830,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#controller-dependency-advisories" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Controller Dependency Advisories
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#how-to-rotate-secrets" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1188,8 +1199,20 @@ tracked secrets.</p>
 <p>Git ignore rules do not protect a file that was already committed. Remove the
 file from tracking, rotate the exposed credential immediately, then coordinate
 history cleanup as needed. Deleting the latest file does not remove it from Git
-history or forks. The existing application Secret example has empty values;
-populate real application secrets through a separate secret-management workflow.</p>
+history or forks. The fitness workload declares no Secret data in Git; Ansible
+owns its private runtime and TLS Secrets, which the application project cannot
+take over.</p>
+<h2 id="controller-dependency-advisories">Controller Dependency Advisories</h2>
+<p>The release review separately found existing Dependabot advisories in the
+homelab controller/docs <code>uv.lock</code>: critical <code>certifi</code> and high <code>filelock</code>,
+<code>pymdown-extensions</code>, and <code>ansible-core</code> findings. These are not a clean security
+bill for the controller; review the current
+<a href="https://github.com/TheNewThinkTank/homelab/security/dependabot">advisory inventory</a>
+and validate a scoped dependency upgrade. Do not silently substitute a release
+candidate for a pinned controller version or bypass TLS/scanner gates.</p>
+<p>The deployed fitness backend/frontend are separate images and passed their
+required CI vulnerability scans. Controller dependency remediation remains a
+separate follow-up; this rollout does not claim those alerts are fixed.</p>
 <h2 id="how-to-rotate-secrets">How to Rotate Secrets</h2>
 <p>Rotate SSH keys by adding and testing a new
 public key before removing the old one; cloud-init is first-boot configuration,

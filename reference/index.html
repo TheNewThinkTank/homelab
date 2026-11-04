@@ -1304,6 +1304,10 @@ contains passwords, private keys, Kubernetes tokens, or kubeconfig data.</p>
 </tr>
 </tbody>
 </table>
+<p>Make selects an existing system CA bundle: Ubuntu's
+<code>/etc/ssl/certs/ca-certificates.crt</code> or macOS's <code>/etc/ssl/cert.pem</code>. An explicit
+<code>SSL_CERT_FILE</code> override is preserved. A platform-specific nonexistent path must
+not replace the default trust store on another operating system.</p>
 <p>Never set provider insecure mode, disable SSH host checks, or turn off Kubernetes
 TLS validation to get past a trust failure. Install the correct CA or verify the
 host fingerprint instead.</p>
@@ -1349,6 +1353,32 @@ host fingerprint instead.</p>
 </table>
 <p>Guest passwords remain locked. Grafana's secret is a bootstrap
 credential: changing it does not reset an already-initialized Grafana database.</p>
+<p><code>make fitness-credentials</code> appends the following fields to an existing encrypted
+vault without changing cluster credentials. A second run preserves them:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fitness_tracker_password</code></td>
+<td>Generated athlete password; retrieve only in a trusted terminal</td>
+</tr>
+<tr>
+<td><code>fitness_tracker_password_hash</code></td>
+<td>PBKDF2-SHA256 with 600,000 rounds and a random salt</td>
+</tr>
+<tr>
+<td><code>fitness_tracker_api_token</code></td>
+<td>Random backend/proxy token; never browser configuration</td>
+</tr>
+</tbody>
+</table>
+<p>An incomplete existing set is rejected rather than silently rotated. These
+fields stay outside Git and Argo CD resource ownership.</p>
 <h2 id="commands">Commands</h2>
 <table>
 <thead>
@@ -1403,6 +1433,21 @@ credential: changing it does not reset an already-initialized Grafana database.<
 <td><code>make vault</code></td>
 <td>Prompt for vault password and create encrypted credentials</td>
 <td>No</td>
+</tr>
+<tr>
+<td><code>make fitness-credentials</code></td>
+<td>Append stable application credentials to the encrypted vault</td>
+<td>No cluster mutation</td>
+</tr>
+<tr>
+<td><code>make fitness-check</code></td>
+<td>Strict manifest/image gate; optional <code>ALLOW_UNRELEASED=1</code> is draft validation only</td>
+<td>No</td>
+</tr>
+<tr>
+<td><code>make fitness-deploy</code></td>
+<td>Verify published manifests, digest pins, and external Secrets; create only the Argo CD Application</td>
+<td>Yes</td>
 </tr>
 <tr>
 <td><code>make trust-guest-keys</code></td>
@@ -1538,6 +1583,11 @@ arguments or extra-vars strings.</p>
 <td><code>argocd_application_repository</code></td>
 <td>Public TheNewThinkTank homelab HTTPS Git URL</td>
 <td>Only admitted application source; no embedded credentials</td>
+</tr>
+<tr>
+<td><code>fitness_tracker_enabled</code></td>
+<td><code>true</code></td>
+<td>Reconcile private app credentials; does not create an Application</td>
 </tr>
 </tbody>
 </table>

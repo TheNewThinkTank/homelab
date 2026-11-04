@@ -1027,6 +1027,11 @@ acceptance and recovery exercises can prove the second.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>make<span class="w"> </span>setup
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>make<span class="w"> </span>check
 </code></pre></div>
+<p>For future unreleased fitness workloads using deliberate <code>release-required</code>
+image markers, use <code>make check ALLOW_UNRELEASED=1</code> for draft validation. This does not
+relax <code>make fitness-deploy</code>: its production check always requires published
+digest-pinned images. After a release is pinned, ordinary <code>make check</code> is the
+required gate.</p>
 <p>The chart download and dependency installation require internet access, but no
 host, guest SSH, vault, or Kubernetes credentials. Tests never call Terraform apply
 against the host.</p>
@@ -1065,6 +1070,10 @@ against the host.</p>
 <tr>
 <td>Argo CD chart gate</td>
 <td>Exact official archive checksum, three CRDs, private services, non-root workloads, disabled anonymous access, repository/namespace project limits</td>
+</tr>
+<tr>
+<td>Fitness workload gate</td>
+<td>Ten local-data resources; one SQLite writer, Recreate rollout, retained state, read-only imports, MFA/TLS, private services, narrow egress, and release image pins</td>
 </tr>
 <tr>
 <td>Python regressions</td>
@@ -1133,6 +1142,16 @@ etcd plus application data can be restored from off-host backups. Run live
 acceptance and idempotence after each exercise. Never test a production restore
 against conflicting libvirt names or addresses.</p>
 <h2 id="verification-limits">Verification Limits</h2>
+<p>An application is not deployed merely because draft checks pass.
+Release verification additionally needs approved image builds, published image
+digests and Git manifests, external runtime/TLS Secrets, an Argo CD
+Synced/Healthy Application, and actual readiness/login/write/persistence checks.
+Local API/config/SQLite tests use isolated fixtures with dotenv disabled; they
+do not establish container or cluster behavior and do not call Google services.</p>
+<p>For the released fitness app, the CI container/browser gates and live
+Synced/Healthy, readiness, login/CSRF, synthetic write, retained-state restart,
+and cleanup checks have passed. This does not establish a full disaster restore
+or import of personal training data; no Google integration was exercised.</p>
 <p>Mocked plans do not prove libvirt permissions, image boot behavior, guest-agent
 startup, protected filesystem mounting, CNI traffic, kernel compatibility, or
 physical capacity. Chart rendering does not prove successful operator scheduling

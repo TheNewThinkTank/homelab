@@ -956,6 +956,34 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#fitness-tracker-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fitness Tracker Release
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Fitness Tracker Release">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#verified-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verified Release
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1031,17 +1059,64 @@ to retrieve it in your own terminal and rotate it after first use.</p>
 private namespace, behind a default-deny policy and the reviewed ingress rule.
 This does not disable Kubernetes API certificate verification.</p>
 <h2 id="application-example">Application Example</h2>
-<p>The bootstrap does not create an Application, enable application auto-sync, or
-adopt existing infrastructure. The existing <code>pn51/application.yaml</code> example now
-selects the <code>homelab</code> project. Review it before applying: it follows <code>HEAD</code> and
-its explicit automated sync, self-heal, and prune settings will take effect if
-you choose to install it.</p>
-<p>The example's application Secret has empty values and is not a production secret
-source. Use a dedicated encrypted-secret or external-secret workflow for real
-credentials; base64 is not protection. Validate images, manifests, application
-backups, and any ingress/authentication changes before enabling reconciliation.
-Changes in this local checkout are not available to Argo CD until deliberately
-published to the configured Git repository.</p>
+<p>The platform bootstrap does not create an Application or adopt existing
+infrastructure. The fitness-tracker workload is defined under
+<code>pn51/dev/fitness-tracker-k8s</code>, and <code>pn51/application.yaml</code> selects the <code>homelab</code>
+project. It follows the reviewed repository's <code>HEAD</code>; automated sync, self-heal,
+and prune take effect only after the Application is deliberately created.</p>
+<h2 id="fitness-tracker-release">Fitness Tracker Release</h2>
+<p>The cluster deployment uses the sibling application's existing backend/frontend
+split. The backend has one replica, a <code>Recreate</code> rollout, and a retained local
+SQLite volume at <code>/state</code>. Imported YAML is a separate read-only <code>/data</code> mount,
+initially empty. More backend replicas would violate the single-process SQLite
+contract; horizontal scaling needs a separate storage/concurrency design first.</p>
+<p>No Google Drive mount, Google credential, personal archive, or host filesystem
+is copied into an image or manifest. The application cannot reach external
+services under its declared network policy. It starts as an empty local-data
+application with athlete authentication still required behind Authelia MFA.</p>
+<p>Ansible owns <code>fitness-tracker-runtime</code> and the namespace's TLS Secret. Run
+<code>make fitness-credentials</code> to append stable application credentials to the
+existing encrypted vault without rotating cluster credentials. Treat the vault
+and its separate password as private recovery material. Argo CD references
+these Secrets but never owns or publishes their contents.</p>
+<p>The application project also forbids Secret resources, so a later manifest
+cannot silently take over either Ansible-managed Secret.</p>
+<p>The sibling app's publishing workflow tags images with the full source commit
+SHA and emits <code>image-release.json</code> containing both pushed image digests. The
+workload must pin those <code>@sha256:</code> references; <code>latest</code> and unreleased tags are
+rejected by the production gate. Building or publishing a release requires
+explicit approval, as do commits and pushes from this local working tree.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>make<span class="w"> </span>fitness-check<span class="w"> </span><span class="nv">ALLOW_UNRELEASED</span><span class="o">=</span><span class="m">1</span>
+</code></pre></div>
+<p>That command validates only a draft workload and does not deploy it. Future
+temporary <code>release-required</code> image references are intentionally unusable.
+After approved images are published, pin both digests, commit and publish the
+reviewed homelab manifests, reconcile the external Secrets through Ansible,
+then run:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>make<span class="w"> </span>fitness-check
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>make<span class="w"> </span>fitness-deploy
+</code></pre></div>
+<p>The deployment helper refuses dirty application manifests, an unpublished local
+revision, unreleased images, or missing runtime/TLS Secrets. It creates only the
+Argo CD Application; Argo CD reconciles the workloads. Publication and an actual
+Synced/Healthy result are separate from draft/template validation. The app is
+not live merely because these source checks pass.</p>
+<p>The live URL is <code>https://fitness.pn51.192.168.1.20.sslip.io</code>. The app retains
+its own athlete session and CSRF protection after the outer Authelia login.
+Retrieve credentials only through a trusted terminal/password-manager workflow,
+never in chat. Back up SQLite through the application's consistent backup
+command; an etcd snapshot does not contain its persistent application data.</p>
+<h3 id="verified-release">Verified Release</h3>
+<p>The deployed images were published by the successful fitness-tracker workflow
+for source revision <code>e2af8408f0a1321d546fe014857dc6e4a0e4cb82</code>; both digest
+manifests were also verified anonymously pullable before deployment. Argo CD
+reconciles the published homelab source, and its Application is Synced/Healthy.
+The backend and frontend are Ready with the retained state claim Bound.</p>
+<p>A live test through the actual frontend verified athlete login, Secure/HttpOnly/
+SameSite cookies, CSRF rejection, synthetic workout creation, readback after a
+new backend pod, test-record deletion, and session revocation. Test credentials
+were confined to process memory; no personal archive was read or imported and
+no Google connection was attempted. The temporary test forward was closed.</p>
 <p>To admit a different repository or namespace, review the project template and
 the corresponding Ansible group variables; do not casually widen the project
 to <code>*</code>. Do not edit Ansible-owned bootstrap resources through an Application.</p>
