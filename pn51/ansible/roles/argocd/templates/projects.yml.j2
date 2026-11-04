@@ -27,5 +27,15 @@ spec:
   namespaceResourceWhitelist:
     - group: '*'
       kind: '*'
+  namespaceResourceBlacklist:
+    - group: ''
+      kind: Secret
   orphanedResources:
     warn: true
+    ignore:
+      - group: ''
+        kind: Secret
+        name: fitness-tracker-runtime
+      - group: ''
+        kind: Secret
+        name: homelab-tls

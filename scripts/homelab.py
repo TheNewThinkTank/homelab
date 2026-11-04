@@ -161,6 +161,51 @@ def create_vault(target: Path) -> None:
     print("Created encrypted .local/vault.yml; plaintext credentials were never written to disk.")
 
 
+def create_fitness_credentials(target: Path, password_file: Path) -> None:
+    if target.is_symlink() or target.parent.is_symlink() or password_file.is_symlink():
+        raise ValueError("Refusing to access vault credentials through a symlink.")
+    plaintext = execute(
+        ["ansible-vault", "view", str(target), "--vault-password-file", str(password_file)],
+        capture=True,
+    )
+    try:
+        documents = parse_yaml_documents(plaintext)
+        if len(documents) != 1:
+            raise ValueError("Expected one encrypted vault document.")
+        document = documents[0]
+    except (ValueError, YAMLError):
+        raise ValueError("The existing encrypted vault is not a valid object.") from None
+    fields = {
+        "fitness_tracker_password",
+        "fitness_tracker_password_hash",
+        "fitness_tracker_api_token",
+    }
+    if fields.intersection(document):
+        if not fields.issubset(document):
+            raise ValueError("Fitness credentials are incomplete; restore them deliberately.")
+        print("Existing encrypted fitness credentials preserved.")
+        return
+    password = secrets.token_urlsafe(32)
+    salt = secrets.token_bytes(16)
+    digest = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 600_000).hex()
+    document.update(
+        {
+            "fitness_tracker_password": password,
+            "fitness_tracker_password_hash": f"pbkdf2_sha256$600000${salt.hex()}${digest}",
+            "fitness_tracker_api_token": secrets.token_urlsafe(32),
+        }
+    )
+    ciphertext = execute(
+        ["ansible-vault", "encrypt", "--output", "-", "--vault-password-file", str(password_file)],
+        capture=True,
+        stdin=json.dumps(document),
+    )
+    if not ciphertext.startswith("$ANSIBLE_VAULT;"):
+        raise ValueError("Credential encryption failed; the original vault was not changed.")
+    private_write(target, ciphertext)
+    print("Fitness credentials added to the encrypted vault; existing cluster identity preserved.")
+
+
 def create_pki(domain: str) -> None:
     if not re.fullmatch(r"[a-z0-9]+(?:[.-][a-z0-9]+)+", domain):
         raise ValueError("Use an ASCII DNS domain for internal TLS.")
@@ -764,6 +809,204 @@ def validate_argocd_projects(projects: list[dict[str, Any]], settings: dict[str,
         )
     if project.get("clusterResourceWhitelist"):
         raise ValueError("Application GitOps must not manage cluster-scoped infrastructure.")
+    if not any(
+        rule.get("group") in {"", "*"} and rule.get("kind") in {"Secret", "*"}
+        for rule in project.get("namespaceResourceBlacklist", [])
+    ):
+        raise ValueError("Application GitOps must not own Ansible-managed runtime Secrets.")
+
+
+def validate_fitness_workload(
+    documents: list[dict[str, Any]], *, allow_unreleased: bool = False
+) -> None:
+    settings = load_settings()
+    namespace = settings["argocd_application_namespace"]
+    if any(item["metadata"].get("namespace") != namespace for item in documents):
+        raise ValueError("Every fitness resource must stay in the admitted application namespace.")
+    if any(
+        item["kind"] in {"Secret", "Namespace", "ClusterRole", "ClusterRoleBinding"}
+        for item in documents
+    ):
+        raise ValueError(
+            "Application GitOps must not publish credentials or cluster infrastructure."
+        )
+    deployments = {
+        item["metadata"]["name"]: item for item in documents if item["kind"] == "Deployment"
+    }
+    if set(deployments) != {"fitness-tracker-backend", "fitness-tracker-frontend"}:
+        raise ValueError("Declare the existing backend/frontend split explicitly.")
+    backend = deployments["fitness-tracker-backend"]["spec"]
+    if backend["replicas"] != 1 or backend.get("strategy", {}).get("type") != "Recreate":
+        raise ValueError("SQLite requires one backend writer and a Recreate rollout.")
+    for component in ("backend", "frontend"):
+        pod = deployments[f"fitness-tracker-{component}"]["spec"]["template"]["spec"]
+        if pod.get("automountServiceAccountToken", True) or pod.get("enableServiceLinks", True):
+            raise ValueError("Fitness pods must not receive API tokens or service-link injection.")
+        if not pod.get("securityContext", {}).get("runAsNonRoot"):
+            raise ValueError("Fitness containers must run without root.")
+        container = pod["containers"][0]
+        security = container.get("securityContext", {})
+        if (
+            security.get("allowPrivilegeEscalation", True)
+            or not security.get("readOnlyRootFilesystem")
+            or security.get("capabilities", {}).get("drop") != ["ALL"]
+        ):
+            raise ValueError("Fitness containers require restricted security contexts.")
+        repository = "ghcr.io/thenewthinktank/fitness-tracker" + (
+            "-frontend" if component == "frontend" else ""
+        )
+        image = container["image"]
+        if not re.fullmatch(re.escape(repository) + r"@sha256:[a-f0-9]{64}", image):
+            if not (allow_unreleased and image == repository + ":release-required"):
+                raise ValueError("Publish and pin both fitness images by digest before deployment.")
+        if any(
+            "hostPath" in volume or "nfs" in volume or "secret" in volume
+            for volume in pod.get("volumes", [])
+        ):
+            raise ValueError(
+                "Use retained local state, not host paths or imported Google credentials."
+            )
+    configuration = next(item["data"] for item in documents if item["kind"] == "ConfigMap")
+    expected = {
+        "FITNESS_TRACKER_DATA_DIR": "/data",
+        "FITNESS_TRACKER_STATE_DIR": "/state",
+        "FITNESS_TRACKER_AUTH_REQUIRED": "true",
+        "FITNESS_TRACKER_COOKIE_SECURE": "true",
+        "FITNESS_TRACKER_ENABLE_WRITES": "true",
+        "PYTHON_DOTENV_DISABLED": "1",
+    }
+    if any(configuration.get(key) != value for key, value in expected.items()):
+        raise ValueError(
+            "Keep local state, secure athlete sessions, writes, and dotenv isolation explicit."
+        )
+    if any("GOOGLE" in key or "CREDENTIALS" in key for key in configuration):
+        raise ValueError("Google integrations are not part of this deployment.")
+    claims = [item for item in documents if item["kind"] == "PersistentVolumeClaim"]
+    if (
+        len(claims) != 1
+        or claims[0]["spec"]["storageClassName"] != settings["monitoring_storage_class"]
+        or claims[0]["spec"]["accessModes"] != ["ReadWriteOnce"]
+    ):
+        raise ValueError("The single SQLite state volume must use retained node-local storage.")
+    backend_volumes = backend["template"]["spec"]["volumes"]
+    if not any(
+        volume.get("persistentVolumeClaim", {}).get("claimName") == claims[0]["metadata"]["name"]
+        for volume in backend_volumes
+    ):
+        raise ValueError("Attach the retained state claim to the backend.")
+    mounts = {
+        mount["name"]: mount
+        for mount in backend["template"]["spec"]["containers"][0]["volumeMounts"]
+    }
+    if mounts.get("state", {}).get("mountPath") != "/state" or mounts["state"].get(
+        "readOnly", False
+    ):
+        raise ValueError("Keep SQLite writable only on the separate retained state volume.")
+    if mounts.get("imported-data", {}).get("mountPath") != "/data" or not mounts[
+        "imported-data"
+    ].get("readOnly"):
+        raise ValueError("Imported YAML must remain read-only and separate from SQLite state.")
+    for item in documents:
+        if item["kind"] == "Service" and item["spec"].get("type", "ClusterIP") != "ClusterIP":
+            raise ValueError("Expose fitness only through the authenticated ingress.")
+    ingress = next(item for item in documents if item["kind"] == "Ingress")
+    if (
+        not ingress["spec"].get("tls")
+        or ingress["spec"]["rules"][0]["host"] != "fitness." + settings["lab_domain"]
+    ):
+        raise ValueError("The app must use the declared private HTTPS hostname.")
+    if "fitness-tracker-authelia@kubernetescrd" not in ingress["metadata"]["annotations"].get(
+        "traefik.ingress.kubernetes.io/router.middlewares", ""
+    ):
+        raise ValueError("Fitness ingress must require Authelia MFA.")
+    policies = [item for item in documents if item["kind"] == "NetworkPolicy"]
+    if len(policies) != 1 or set(policies[0]["spec"]["policyTypes"]) != {"Ingress", "Egress"}:
+        raise ValueError("The app needs an explicit ingress/egress boundary.")
+    for rule in policies[0]["spec"].get("egress", []):
+        peers = rule.get("to", [])
+        ports = rule.get("ports", [])
+        if not peers or not ports or any("endPort" in port for port in ports):
+            raise ValueError("Fitness may reach only cluster DNS and its local API, not Google.")
+        for peer in peers:
+            if peer == {
+                "namespaceSelector": {
+                    "matchLabels": {"kubernetes.io/metadata.name": "kube-system"}
+                },
+                "podSelector": {"matchLabels": {"k8s-app": "kube-dns"}},
+            }:
+                allowed_ports = {("UDP", 53), ("TCP", 53)}
+            elif peer == {
+                "podSelector": {
+                    "matchLabels": {
+                        "app.kubernetes.io/name": "fitness-tracker",
+                        "app.kubernetes.io/component": "backend",
+                    }
+                }
+            }:
+                allowed_ports = {("TCP", 8000)}
+            else:
+                raise ValueError("Fitness egress must target only CoreDNS or its own backend.")
+            if not {(port.get("protocol", "TCP"), port["port"]) for port in ports}.issubset(
+                allowed_ports
+            ):
+                raise ValueError(
+                    "Fitness egress ports must match their declared local destination."
+                )
+
+
+def check_fitness_workload(*, allow_unreleased: bool = False) -> None:
+    rendered = execute(
+        ["kubectl", "kustomize", str(ROOT / "pn51/dev/fitness-tracker-k8s")], capture=True
+    )
+    documents = parse_yaml_documents(rendered)
+    validate_fitness_workload(documents, allow_unreleased=allow_unreleased)
+    print(f"Validated {len(documents)} restricted local-data fitness resources.")
+
+
+def deploy_fitness() -> None:
+    check_fitness_workload()
+    settings = load_settings()
+    application = parse_yaml_documents((ROOT / "pn51/application.yaml").read_text())[0]
+    source = application["spec"]["source"]
+    if (
+        source.get("repoURL") != settings["argocd_application_repository"]
+        or source.get("path") != "pn51/dev/fitness-tracker-k8s"
+        or source.get("targetRevision") not in {"HEAD", "main"}
+    ):
+        raise ValueError(
+            "The Application must track the reviewed HTTPS repository and workload path."
+        )
+    paths = ["pn51/dev/fitness-tracker-k8s", "pn51/application.yaml"]
+    if execute(
+        ["git", "-C", str(ROOT), "status", "--porcelain", "--", *paths], capture=True
+    ).strip():
+        raise ValueError(
+            "Commit and publish the reviewed fitness manifests before Argo CD deployment."
+        )
+    revision = execute(["git", "-C", str(ROOT), "rev-parse", "HEAD"], capture=True).strip()
+    published = execute(
+        ["git", "-C", str(ROOT), "ls-remote", source["repoURL"], "refs/heads/main"], capture=True
+    ).split()
+    if not published or published[0] != revision:
+        raise ValueError("Publish the reviewed homelab revision before creating the Application.")
+    kubectl = ["kubectl", "--kubeconfig", str(LOCAL / "kubeconfig")]
+    execute(
+        [
+            *kubectl,
+            "-n",
+            "fitness-tracker",
+            "get",
+            "secret",
+            "fitness-tracker-runtime",
+            "homelab-tls",
+            "-o",
+            "name",
+        ]
+    )
+    execute([*kubectl, "apply", "-f", str(ROOT / "pn51/application.yaml")])
+    print(
+        "Argo CD Application created from the published repository; no workload applied directly."
+    )
 
 
 def local_volumes_for_node(volumes: list[dict[str, Any]], node: str) -> list[str]:
@@ -1139,11 +1382,25 @@ def main() -> int:
         "trust-guest-keys", help="Verify guest SSH keys using the trusted libvirt host"
     )
     commands.add_parser("vault", help="Create encrypted credentials without a plaintext file")
+    fitness_credentials = commands.add_parser(
+        "fitness-credentials", help="Add local app credentials to the encrypted vault"
+    )
+    fitness_credentials.add_argument("--vault", type=Path, default=LOCAL / "vault.yml")
+    fitness_credentials.add_argument("--password-file", type=Path, default=LOCAL / "vault-password")
     commands.add_parser("chart-check", help="Verify, lint, and render the pinned monitoring chart")
     commands.add_parser(
         "argocd-chart-check", help="Validate the pinned Argo CD chart and project boundary"
     )
     commands.add_parser("platform-check", help="Validate rendered platform security contracts")
+    fitness_check = commands.add_parser(
+        "fitness-check", help="Validate the local-data application manifests"
+    )
+    fitness_check.add_argument(
+        "--allow-unreleased", action="store_true", help="Validate draft shape only; never deploy"
+    )
+    commands.add_parser(
+        "fitness-deploy", help="Create the Application only after strict release/publication checks"
+    )
     commands.add_parser("verify", help="Run live cluster and monitoring acceptance checks")
     replacement = commands.add_parser(
         "replace-worker", help="Plan and explicitly confirm a worker replacement"
@@ -1170,12 +1427,18 @@ def main() -> int:
             trust_guest_keys()
         elif arguments.command == "vault":
             create_vault(LOCAL / "vault.yml")
+        elif arguments.command == "fitness-credentials":
+            create_fitness_credentials(arguments.vault, arguments.password_file)
         elif arguments.command == "chart-check":
             check_chart()
         elif arguments.command == "argocd-chart-check":
             check_argocd_chart()
         elif arguments.command == "platform-check":
             check_platform_templates()
+        elif arguments.command == "fitness-check":
+            check_fitness_workload(allow_unreleased=arguments.allow_unreleased)
+        elif arguments.command == "fitness-deploy":
+            deploy_fitness()
         elif arguments.command == "verify":
             verify_live()
         elif arguments.command == "replace-worker":

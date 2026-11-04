@@ -14,6 +14,7 @@ argocd_chart_path: "{{ playbook_dir }}/../../.local/argo-cd-{{ argocd_chart_vers
 argocd_namespace: argocd
 argocd_application_namespace: fitness-tracker
 argocd_application_repository: https://github.com/TheNewThinkTank/homelab.git
+fitness_tracker_enabled: true
 monitoring_chart_version: 92.9.0
 monitoring_chart_checksum: sha256:d99bc9dca70d8a2844e59ca18e589bfd69014b5c46d0be05ba8587932048b07f
 monitoring_chart_path: "{{ playbook_dir }}/../../.local/kube-prometheus-stack-{{ monitoring_chart_version }}.tgz"

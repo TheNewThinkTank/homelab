@@ -74,6 +74,13 @@ shell, without changing your global dotfiles or Kubernetes context.
 
 ## Documentation
 
+The fitness-tracker rollout is prepared separately from the running platform.
+It uses local retained SQLite state, requires no Google Drive, and is guarded
+against unreleased images or unpublished manifests. See the
+[application release guide](docs/gitops.md#fitness-tracker-release). Draft checks
+use `make check ALLOW_UNRELEASED=1`; only strict release checks can create its
+Argo CD Application.
+
 - [Provisioning tutorial](docs/provisioning.md)
 - [Architecture and decisions](docs/PN51/architecture-diagrams.md)
 - [Configuration and command reference](docs/reference.md)

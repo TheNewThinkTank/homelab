@@ -63,4 +63,6 @@
   roles:
     - role: monitoring
     - role: argocd
+    - role: fitness_tracker
+      when: fitness_tracker_enabled | default(false) | bool
     - role: platform

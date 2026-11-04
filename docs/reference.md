@@ -99,6 +99,18 @@ host fingerprint instead.
 Guest passwords remain locked. Grafana's secret is a bootstrap
 credential: changing it does not reset an already-initialized Grafana database.
 
+`make fitness-credentials` appends the following fields to an existing encrypted
+vault without changing cluster credentials. A second run preserves them:
+
+| Key | Requirement |
+| --- | --- |
+| `fitness_tracker_password` | Generated athlete password; retrieve only in a trusted terminal |
+| `fitness_tracker_password_hash` | PBKDF2-SHA256 with 600,000 rounds and a random salt |
+| `fitness_tracker_api_token` | Random backend/proxy token; never browser configuration |
+
+An incomplete existing set is rejected rather than silently rotated. These
+fields stay outside Git and Argo CD resource ownership.
+
 ## Commands
 
 | Command | Effect | Live resources? |
@@ -112,6 +124,9 @@ credential: changing it does not reset an already-initialized Grafana database.
 | `make apply` | Apply after Terraform confirmation | Yes |
 | `make inventory` | Validate Terraform outputs and write private JSON inventory | Reads state |
 | `make vault` | Prompt for vault password and create encrypted credentials | No |
+| `make fitness-credentials` | Append stable application credentials to the encrypted vault | No cluster mutation |
+| `make fitness-check` | Strict manifest/image gate; optional `ALLOW_UNRELEASED=1` is draft validation only | No |
+| `make fitness-deploy` | Verify published manifests, digest pins, and external Secrets; create only the Argo CD Application | Yes |
 | `make trust-guest-keys` | Read verified public guest SSH keys into `.local/known_hosts` | Reads libvirt guest agents |
 | `make tunnel` | Keep API forwarded to localhost:16443 | No cluster mutation |
 | `make configure` | Reconcile server guests, K3s, monitoring, Homepage, Argo CD bootstrap, authentication, and ingress | Yes |
@@ -149,6 +164,7 @@ arguments or extra-vars strings.
 | `argocd_namespace` | `argocd` | Trusted bootstrap/controller namespace |
 | `argocd_application_namespace` | `fitness-tracker` | Only admitted application destination |
 | `argocd_application_repository` | Public TheNewThinkTank homelab HTTPS Git URL | Only admitted application source; no embedded credentials |
+| `fitness_tracker_enabled` | `true` | Reconcile private app credentials; does not create an Application |
 
 Argo CD's initial administrator password is generated in Kubernetes and is not
 an Ansible Vault field. Its bootstrap, CRDs, projects, and ingress remain

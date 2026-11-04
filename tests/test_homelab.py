@@ -310,6 +310,78 @@ def test_vault_generation_never_writes_plaintext(tmp_path, monkeypatch, capsys):
         homelab.create_vault(target)
 
 
+def test_fitness_credentials_preserve_existing_vault_and_never_log_plaintext(
+    tmp_path, monkeypatch, capsys
+):
+    target = tmp_path / "vault.yml"
+    target.write_text("original encrypted bytes")
+    original = {
+        "k3s_token": "original-cluster-identity",
+        "grafana_admin_password": "original-password",
+    }
+    observed = {}
+
+    def vault_command(command, *, capture=False, stdin=None):
+        assert capture
+        if command[1] == "view":
+            return json.dumps(original)
+        observed.update(json.loads(stdin))
+        return "$ANSIBLE_VAULT;1.1;AES256\nencrypted-test-payload\n"
+
+    monkeypatch.setattr(homelab, "execute", vault_command)
+    homelab.create_fitness_credentials(target, tmp_path / "password-file")
+    assert observed.items() >= original.items()
+    algorithm, rounds, salt, digest = observed["fitness_tracker_password_hash"].split("$")
+    assert algorithm == "pbkdf2_sha256" and int(rounds) == 600_000
+    assert (
+        homelab.hashlib.pbkdf2_hmac(
+            "sha256",
+            observed["fitness_tracker_password"].encode(),
+            bytes.fromhex(salt),
+            int(rounds),
+        ).hex()
+        == digest
+    )
+    output = capsys.readouterr()
+    for field in ("fitness_tracker_password", "fitness_tracker_api_token"):
+        assert observed[field] not in output.out + output.err + target.read_text()
+    assert stat.S_IMODE(target.stat().st_mode) == 0o600
+
+
+def test_fitness_credentials_encryption_failure_keeps_original_vault(tmp_path, monkeypatch):
+    target = tmp_path / "vault.yml"
+    target.write_text("original encrypted bytes")
+
+    def vault_command(command, **kwargs):
+        return '{"k3s_token":"original"}' if command[1] == "view" else "invalid ciphertext"
+
+    monkeypatch.setattr(homelab, "execute", vault_command)
+    with pytest.raises(ValueError, match="original vault"):
+        homelab.create_fitness_credentials(target, tmp_path / "password-file")
+    assert target.read_text() == "original encrypted bytes"
+
+
+def test_fitness_credentials_reuse_existing_identity(tmp_path, monkeypatch):
+    target = tmp_path / "vault.yml"
+    target.write_text("original encrypted bytes")
+    fields = {
+        key: "preserved"
+        for key in (
+            "fitness_tracker_password",
+            "fitness_tracker_password_hash",
+            "fitness_tracker_api_token",
+        )
+    }
+
+    def vault_command(command, **kwargs):
+        assert command[1] == "view"
+        return json.dumps(fields)
+
+    monkeypatch.setattr(homelab, "execute", vault_command)
+    homelab.create_fitness_credentials(target, tmp_path / "password-file")
+    assert target.read_text() == "original encrypted bytes"
+
+
 def test_internal_pki_is_private_and_idempotent(tmp_path, monkeypatch):
     monkeypatch.setattr(homelab, "LOCAL", tmp_path)
     homelab.create_pki("pn51.example.test")
@@ -619,7 +691,14 @@ def test_platform_security_rejects_unsafe_declarations(defect):
 
 
 @pytest.mark.parametrize(
-    "defect", ["default-open", "outside-repository", "outside-namespace", "cluster-resources"]
+    "defect",
+    [
+        "default-open",
+        "outside-repository",
+        "outside-namespace",
+        "cluster-resources",
+        "application-secrets",
+    ],
 )
 def test_argocd_project_scope_rejects_infrastructure_adoption(defect):
     source = homelab.LOCAL / "test-templates/argocd-projects.yml"
@@ -635,10 +714,171 @@ def test_argocd_project_scope_rejects_infrastructure_adoption(defect):
         by_name["homelab"]["sourceRepos"] = ["*"]
     elif defect == "outside-namespace":
         by_name["homelab"]["destinations"][0]["namespace"] = "kube-system"
-    else:
+    elif defect == "cluster-resources":
         by_name["homelab"]["clusterResourceWhitelist"] = [{"group": "*", "kind": "*"}]
+    else:
+        by_name["homelab"].pop("namespaceResourceBlacklist")
     with pytest.raises(ValueError):
         homelab.validate_argocd_projects(projects, settings)
+
+
+@pytest.fixture
+def fitness_workload():
+    rendered = homelab.execute(
+        ["kubectl", "kustomize", str(ROOT / "pn51/dev/fitness-tracker-k8s")], capture=True
+    )
+    documents = homelab.parse_yaml_documents(rendered)
+    for item in documents:
+        if item["kind"] == "Deployment":
+            container = item["spec"]["template"]["spec"]["containers"][0]
+            container["image"] = (
+                container["image"].split("@")[0].split(":")[0] + "@sha256:" + "a" * 64
+            )
+    return documents
+
+
+def test_fitness_local_workload_contract(fitness_workload):
+    homelab.validate_fitness_workload(fitness_workload)
+
+
+@pytest.mark.parametrize(
+    "defect",
+    [
+        "replicas",
+        "rolling-writer",
+        "auth-disabled",
+        "writable-import",
+        "latest-image",
+        "google-egress",
+        "open-egress",
+        "no-mfa",
+        "public-service",
+        "secret-in-git",
+    ],
+)
+def test_fitness_workload_rejects_unsafe_deployment(fitness_workload, defect):
+    backend = next(
+        item
+        for item in fitness_workload
+        if item["kind"] == "Deployment" and item["metadata"]["name"] == "fitness-tracker-backend"
+    )
+    policy = next(item for item in fitness_workload if item["kind"] == "NetworkPolicy")
+    if defect == "replicas":
+        backend["spec"]["replicas"] = 2
+    elif defect == "rolling-writer":
+        backend["spec"]["strategy"]["type"] = "RollingUpdate"
+    elif defect == "auth-disabled":
+        next(item for item in fitness_workload if item["kind"] == "ConfigMap")["data"][
+            "FITNESS_TRACKER_AUTH_REQUIRED"
+        ] = "false"
+    elif defect == "writable-import":
+        next(
+            mount
+            for mount in backend["spec"]["template"]["spec"]["containers"][0]["volumeMounts"]
+            if mount["name"] == "imported-data"
+        )["readOnly"] = False
+    elif defect == "latest-image":
+        backend["spec"]["template"]["spec"]["containers"][0]["image"] = (
+            "ghcr.io/thenewthinktank/fitness-tracker:latest"
+        )
+    elif defect == "google-egress":
+        policy["spec"]["egress"].append(
+            {
+                "to": [{"ipBlock": {"cidr": "0.0.0.0/0"}}],
+                "ports": [{"protocol": "TCP", "port": 443}],
+            }
+        )
+    elif defect == "open-egress":
+        policy["spec"]["egress"].append({})
+    elif defect == "no-mfa":
+        next(item for item in fitness_workload if item["kind"] == "Ingress")["metadata"][
+            "annotations"
+        ].pop("traefik.ingress.kubernetes.io/router.middlewares")
+    elif defect == "public-service":
+        next(item for item in fitness_workload if item["kind"] == "Service")["spec"]["type"] = (
+            "NodePort"
+        )
+    else:
+        fitness_workload.append(
+            {
+                "apiVersion": "v1",
+                "kind": "Secret",
+                "metadata": {"name": "bad", "namespace": "fitness-tracker"},
+            }
+        )
+    with pytest.raises(ValueError):
+        homelab.validate_fitness_workload(fitness_workload)
+
+
+def test_fitness_unreleased_marker_is_never_deployable():
+    source = homelab.execute(
+        ["kubectl", "kustomize", str(ROOT / "pn51/dev/fitness-tracker-k8s")], capture=True
+    )
+    documents = homelab.parse_yaml_documents(source)
+    for item in documents:
+        if item["kind"] == "Deployment":
+            container = item["spec"]["template"]["spec"]["containers"][0]
+            container["image"] = (
+                container["image"].split("@")[0].split(":")[0] + ":release-required"
+            )
+    homelab.validate_fitness_workload(documents, allow_unreleased=True)
+    with pytest.raises(ValueError, match="pin both fitness images"):
+        homelab.validate_fitness_workload(documents)
+
+
+@pytest.mark.parametrize("published", [False, True])
+def test_fitness_deploy_checks_the_actual_gitops_source(tmp_path, monkeypatch, published):
+    settings = homelab.load_settings()
+    application = homelab.parse_yaml_documents((ROOT / "pn51/application.yaml").read_text())[0]
+    target = tmp_path / "pn51/application.yaml"
+    target.parent.mkdir()
+    target.write_text(yaml.safe_dump(application))
+    monkeypatch.setattr(homelab, "ROOT", tmp_path)
+    monkeypatch.setattr(homelab, "load_settings", lambda: settings)
+    monkeypatch.setattr(homelab, "check_fitness_workload", lambda: None)
+    commands = []
+    revision = "b" * 40
+
+    def execute(command, **kwargs):
+        commands.append(command)
+        if "rev-parse" in command:
+            return revision
+        if "ls-remote" in command:
+            assert command[-2] == settings["argocd_application_repository"]
+            return (revision if published else "c" * 40) + "\trefs/heads/main\n"
+        return ""
+
+    monkeypatch.setattr(homelab, "execute", execute)
+    if published:
+        homelab.deploy_fitness()
+        assert any(command[0] == "kubectl" and "apply" in command for command in commands)
+    else:
+        with pytest.raises(ValueError, match="Publish the reviewed"):
+            homelab.deploy_fitness()
+        assert not any(command[0] == "kubectl" for command in commands)
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [("repoURL", "https://example.invalid/unreviewed.git"), ("targetRevision", "unreviewed-tag")],
+)
+def test_fitness_deploy_rejects_unreviewed_application_source(tmp_path, monkeypatch, field, value):
+    settings = homelab.load_settings()
+    application = homelab.parse_yaml_documents((ROOT / "pn51/application.yaml").read_text())[0]
+    application["spec"]["source"][field] = value
+    target = tmp_path / "pn51/application.yaml"
+    target.parent.mkdir()
+    target.write_text(yaml.safe_dump(application))
+    monkeypatch.setattr(homelab, "ROOT", tmp_path)
+    monkeypatch.setattr(homelab, "load_settings", lambda: settings)
+    monkeypatch.setattr(homelab, "check_fitness_workload", lambda: None)
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("Unreviewed sources must not execute publication or cluster commands")
+
+    monkeypatch.setattr(homelab, "execute", forbidden)
+    with pytest.raises(ValueError, match="reviewed HTTPS repository"):
+        homelab.deploy_fitness()
 
 
 def test_public_files_exclude_private_artifacts():

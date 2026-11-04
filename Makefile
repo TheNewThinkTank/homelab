@@ -32,6 +32,8 @@ export CHECKPOINT_DISABLE := 1
 .PHONY: platform-check
 .PHONY: argocd-chart-check
 .PHONY: cutover
+.PHONY: fitness-credentials
+.PHONY: fitness-check fitness-deploy
 
 help:
 	@printf '%s\n' \
@@ -41,6 +43,9 @@ help:
 	  'image          Download and verify the pinned Ubuntu server cloud image' \
 	  'init/plan/apply Manage four VMs; apply requires Terraform confirmation' \
 	  'vault          Create encrypted credentials without plaintext files' \
+	  'fitness-credentials Add stable app credentials to the encrypted vault' \
+	  'fitness-check  Validate the app; ALLOW_UNRELEASED=1 is draft-only' \
+	  'fitness-deploy Create Argo Application only after strict release checks' \
 	  'trust-guest-keys Verify guest SSH keys through the trusted libvirt connection' \
 	  'tunnel         Forward the private K3s API to localhost:16443' \
 	  'configure      Configure server guests, K3s, and monitoring from inventory' \
@@ -95,6 +100,15 @@ inventory: workspace
 vault: workspace
 	$(PYTHON) scripts/homelab.py vault
 
+fitness-credentials: workspace
+	$(PYTHON) scripts/homelab.py fitness-credentials --vault '$(VAULT_FILE)'
+
+fitness-check: workspace
+	$(PYTHON) scripts/homelab.py fitness-check $(if $(filter 1,$(ALLOW_UNRELEASED)),--allow-unreleased)
+
+fitness-deploy: workspace
+	$(PYTHON) scripts/homelab.py fitness-deploy
+
 configure: inventory
 	$(ANSIBLE) pn51/ansible/playbook.yml --extra-vars '@$(VAULT_FILE)' $(CONFIG_ARGS) $(VAULT_ARGS)
 
@@ -138,7 +152,7 @@ test: workspace
 	$(TF) init -backend=false -input=false
 	$(TF) validate
 	$(TF) test
-	$(MAKE) chart-check platform-check argocd-chart-check
+	$(MAKE) chart-check platform-check argocd-chart-check fitness-check
 	$(PYTHON) -m pytest
 
 docs: workspace

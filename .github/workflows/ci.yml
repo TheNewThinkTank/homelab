@@ -34,6 +34,21 @@ jobs:
       - uses: azure/setup-helm@bf6a7d304bc2fdb57e0331155b7ebf2c504acf0a
         with:
           version: v3.22.1
+      - name: Install pinned manifest renderer
+        env:
+          KUBECTL_VERSION: v1.37.1
+        run: |
+          set -euo pipefail
+          mkdir -p .local/bin
+          curl --fail --silent --show-error --location \
+            "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
+            --output .local/bin/kubectl
+          curl --fail --silent --show-error --location \
+            "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl.sha256" \
+            --output .local/bin/kubectl.sha256
+          printf '%s  %s\n' "$(cat .local/bin/kubectl.sha256)" .local/bin/kubectl | sha256sum --check
+          chmod 0755 .local/bin/kubectl
+          echo "${GITHUB_WORKSPACE}/.local/bin" >> "$GITHUB_PATH"
       - name: Install locked controller dependencies
         run: make setup
       - name: Validate infrastructure, templates, chart, and documentation

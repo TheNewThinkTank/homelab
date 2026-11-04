@@ -33,6 +33,7 @@ automatically.
 ```bash
 make setup
 make init-local
+make fitness-credentials
 make check
 ```
 
@@ -46,6 +47,11 @@ The vault password, private TLS keys, kubeconfig, and state are sensitive even
 though Git ignores them. Back them up securely and store the vault password
 separately in a password manager. TLS downloads use verified system trust and
 pinned SHA-256 checks; never use insecure TLS flags.
+
+The fitness credential step adds private app bootstrap fields without deploying
+an Application or contacting Google. If the workload is still an unreleased
+draft, run `make check ALLOW_UNRELEASED=1` here; deployment remains blocked until
+the strict [application release flow](gitops.md#fitness-tracker-release) passes.
 
 ## Step 2: Reconcile the Ubuntu Host
 

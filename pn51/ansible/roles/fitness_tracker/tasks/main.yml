@@ -1,0 +1,32 @@
+---
+- name: Provision private fitness-tracker runtime credentials outside GitOps
+  delegate_to: localhost
+  become: false
+  vars:
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
+  block:
+    - name: Require stable vaulted application credentials
+      ansible.builtin.assert:
+        that:
+          - fitness_tracker_password_hash is match('^pbkdf2_sha256\$600000\$[a-f0-9]{32}\$[a-f0-9]{64}$')
+          - fitness_tracker_api_token | length >= 32
+        fail_msg: Run make fitness-credentials before configuring the app bootstrap.
+      no_log: true
+
+    - name: Reconcile the application credential Secret without publishing it
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_local_path }}"
+        validate_certs: true
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: fitness-tracker-runtime
+            namespace: "{{ argocd_application_namespace }}"
+          type: Opaque
+          data:
+            FITNESS_TRACKER_API_TOKEN: "{{ fitness_tracker_api_token | b64encode }}"
+            FITNESS_TRACKER_PASSWORD_HASH: "{{ fitness_tracker_password_hash | b64encode }}"
+      no_log: true
+      diff: false

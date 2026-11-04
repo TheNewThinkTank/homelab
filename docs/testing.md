@@ -11,6 +11,12 @@ make setup
 make check
 ```
 
+While the fitness workload still has its deliberate `release-required` image
+markers, use `make check ALLOW_UNRELEASED=1` for draft validation. This does not
+relax `make fitness-deploy`: its production check always requires published
+digest-pinned images. After a release is pinned, ordinary `make check` is the
+required gate.
+
 The chart download and dependency installation require internet access, but no
 host, guest SSH, vault, or Kubernetes credentials. Tests never call Terraform apply
 against the host.
@@ -24,6 +30,7 @@ against the host.
 | Real Ansible templates | All four host configs rendered; server/agent flag separation; token-file use; unchanged second render |
 | Platform render gate | 33 real resources; seven MFA/TLS routes, restricted containers, credential-free Homepage, network policies, read-only Headlamp RBAC |
 | Argo CD chart gate | Exact official archive checksum, three CRDs, private services, non-root workloads, disabled anonymous access, repository/namespace project limits |
+| Fitness workload gate | Ten local-data resources; one SQLite writer, Recreate rollout, retained state, read-only imports, MFA/TLS, private services, narrow egress, and release image pins |
 | Python regressions | Private modes, symlinks, vault encryption/failure, inventory precedence, replacement scope and PV guards, idempotence evidence |
 | Dotfiles role contracts | Mutable revisions rejected before package installation; public source and ubuntu ownership; local configuration fixture changes only when necessary |
 | Real pinned chart | Exact archive checksum; strict Helm lint; render against pinned Kubernetes version; private services; persistent storage; existing Grafana Secret |
@@ -86,6 +93,13 @@ acceptance and idempotence after each exercise. Never test a production restore
 against conflicting libvirt names or addresses.
 
 ## Verification Limits
+
+The prepared fitness workload is not deployed merely because draft checks pass.
+Release verification additionally needs approved image builds, published image
+digests and Git manifests, external runtime/TLS Secrets, an Argo CD
+Synced/Healthy Application, and actual readiness/login/write/persistence checks.
+Local API/config/SQLite tests use isolated fixtures with dotenv disabled; they
+do not establish container or cluster behavior and do not call Google services.
 
 Mocked plans do not prove libvirt permissions, image boot behavior, guest-agent
 startup, protected filesystem mounting, CNI traffic, kernel compatibility, or

@@ -73,6 +73,23 @@ Enter it in Headlamp after Authelia MFA. Do not post the token in chat or store
 it in Git. The default role cannot read Secrets or mutate cluster resources.
 Cluster-admin access is not granted by the bootstrap.
 
+## Fitness Tracker Access
+
+The intended URL is `https://fitness.pn51.192.168.1.20.sslip.io`, but the route
+exists only after the approved image/manifests release is synchronized by Argo
+CD. The current draft is not a running application. Follow the
+[fitness release guide](gitops.md#fitness-tracker-release) first.
+
+After Authelia MFA, the application requires its own athlete sign-in. Its
+generated password is in the encrypted vault's `fitness_tracker_password` field;
+retrieve it only through a trusted terminal or password-manager workflow, never
+in chat. The frontend keeps the backend API token server-side, and writes still
+require the athlete session, a same-origin HTTPS request, and a CSRF token.
+
+The deployment begins with empty local data. No Google Drive account, mount,
+credential, or personal archive is required. New app data persists on its 2 GiB
+retained SQLite claim; do not delete that claim to reset a failed rollout.
+
 ## How to Open Grafana
 
 In a dedicated terminal:
