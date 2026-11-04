@@ -84,6 +84,48 @@
 			"command": "make configure ANSIBLE='.venv/bin/ansible-playbook --start-at-task \"Create the isolated Argo CD and application namespaces\"' && make verify",
 			"isBackground": false,
 			"problemMatcher": []
+		},
+		{
+			"label": "Fitness Deployment Prerequisites",
+			"type": "shell",
+			"command": "export GIT_PAGER=cat GH_PAGER=cat; git --no-pager status --short && git -C ../fitness-tracker --no-pager status --short -- . ':!data' ':!logs' ':!stats' && git -C ../fitness-tracker rev-parse HEAD && git rev-parse HEAD && for executable in gh docker podman buildah; do command -v \"$executable\" || true; done && gh api user --jq .login",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Fitness Tracker Publishing Status",
+			"type": "shell",
+			"command": "GH_PROMPT_DISABLED=1 GH_PAGER=cat PAGER=cat gh api repos/TheNewThinkTank/fitness-tracker --jq '{default_branch,visibility}' && GH_PROMPT_DISABLED=1 GH_PAGER=cat PAGER=cat gh api 'repos/TheNewThinkTank/fitness-tracker/actions/runs?branch=main&per_page=3' --jq '.workflow_runs[] | {status,conclusion,event,head_sha}'",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Fitness Tracker Public Source Scan",
+			"type": "shell",
+			"command": "for candidate in .github/workflows/job_docker_image.yml .github/workflows/wf.yml README.md src/utils/config.py test/utils/test_config.py test/utils/test_state_store.py; do cat -- \"../fitness-tracker/$candidate\"; printf '\\n'; done | gitleaks stdin --redact --no-banner",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Personal GitHub Login",
+			"type": "shell",
+			"command": "source \"${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/personal-gh-path.sh\" && gh auth login --hostname github.com --web --git-protocol https && gh api --hostname github.com user --jq .login",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Fitness Tracker Release CI",
+			"type": "shell",
+			"command": "source \"${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles/personal-gh-path.sh\" && GH_PAGER=cat PAGER=cat gh run watch 41817864050 --repo TheNewThinkTank/fitness-tracker --exit-status",
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Fitness Tracker Argo Acceptance",
+			"type": "shell",
+			"command": "kubectl --kubeconfig .local/kubeconfig -n argocd wait --for=jsonpath='{.status.sync.status}'=Synced application/fitness-tracker-argo-application --timeout=300s && kubectl --kubeconfig .local/kubeconfig -n argocd wait --for=jsonpath='{.status.health.status}'=Healthy application/fitness-tracker-argo-application --timeout=300s && kubectl --kubeconfig .local/kubeconfig -n fitness-tracker get deployment,pod,pvc,ingress",
+			"isBackground": false,
+			"problemMatcher": []
 		}
 	]
 }
