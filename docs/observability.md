@@ -75,10 +75,10 @@ Cluster-admin access is not granted by the bootstrap.
 
 ## Fitness Tracker Access
 
-The intended URL is `https://fitness.pn51.192.168.1.20.sslip.io`, but the route
-exists only after the approved image/manifests release is synchronized by Argo
-CD. The current draft is not a running application. Follow the
-[fitness release guide](gitops.md#fitness-tracker-release) first.
+Fitness-tracker is live at `https://fitness.pn51.192.168.1.20.sslip.io` after the
+approved image/manifests release synchronized through Argo CD. Anonymous HTTPS
+requests redirect to Authelia with verified lab TLS. See the
+[fitness release guide](gitops.md#fitness-tracker-release) for updates.
 
 After Authelia MFA, the application requires its own athlete sign-in. Its
 generated password is in the encrypted vault's `fitness_tracker_password` field;

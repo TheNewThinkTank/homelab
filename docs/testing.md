@@ -11,8 +11,8 @@ make setup
 make check
 ```
 
-While the fitness workload still has its deliberate `release-required` image
-markers, use `make check ALLOW_UNRELEASED=1` for draft validation. This does not
+For future unreleased fitness workloads using deliberate `release-required`
+image markers, use `make check ALLOW_UNRELEASED=1` for draft validation. This does not
 relax `make fitness-deploy`: its production check always requires published
 digest-pinned images. After a release is pinned, ordinary `make check` is the
 required gate.
@@ -94,12 +94,17 @@ against conflicting libvirt names or addresses.
 
 ## Verification Limits
 
-The prepared fitness workload is not deployed merely because draft checks pass.
+An application is not deployed merely because draft checks pass.
 Release verification additionally needs approved image builds, published image
 digests and Git manifests, external runtime/TLS Secrets, an Argo CD
 Synced/Healthy Application, and actual readiness/login/write/persistence checks.
 Local API/config/SQLite tests use isolated fixtures with dotenv disabled; they
 do not establish container or cluster behavior and do not call Google services.
+
+For the released fitness app, the CI container/browser gates and live
+Synced/Healthy, readiness, login/CSRF, synthetic write, retained-state restart,
+and cleanup checks have passed. This does not establish a full disaster restore
+or import of personal training data; no Google integration was exercised.
 
 Mocked plans do not prove libvirt permissions, image boot behavior, guest-agent
 startup, protected filesystem mounting, CNI traffic, kernel compatibility, or

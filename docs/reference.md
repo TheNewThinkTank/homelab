@@ -78,6 +78,11 @@ contains passwords, private keys, Kubernetes tokens, or kubeconfig data.
 | `SSL_CERT_FILE` | Optional verified CA bundle for Python tooling behind a private CA |
 | `UV_SYSTEM_CERTS=true` | Use system trust when installing controller tools behind a private CA |
 
+Make selects an existing system CA bundle: Ubuntu's
+`/etc/ssl/certs/ca-certificates.crt` or macOS's `/etc/ssl/cert.pem`. An explicit
+`SSL_CERT_FILE` override is preserved. A platform-specific nonexistent path must
+not replace the default trust store on another operating system.
+
 Never set provider insecure mode, disable SSH host checks, or turn off Kubernetes
 TLS validation to get past a trust failure. Install the correct CA or verify the
 host fingerprint instead.

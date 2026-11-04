@@ -16,7 +16,10 @@ REPLACEMENT_ARGS = $(if $(strip $(CONFIRM_REPLACEMENT)),--confirm '$(CONFIRM_REP
 export PATH := $(CURDIR)/.venv/bin:$(CURDIR)/scripts:$(PATH)
 export UV_CACHE_DIR := $(CURDIR)/.local/uv-cache
 export UV_SYSTEM_CERTS := true
-export SSL_CERT_FILE ?= /etc/ssl/cert.pem
+SYSTEM_CA_BUNDLE := $(firstword $(wildcard /etc/ssl/certs/ca-certificates.crt /etc/ssl/cert.pem))
+ifneq ($(SYSTEM_CA_BUNDLE),)
+export SSL_CERT_FILE ?= $(SYSTEM_CA_BUNDLE)
+endif
 export ANSIBLE_HOME := $(CURDIR)/.local/ansible
 export ANSIBLE_LOCAL_TEMP := $(CURDIR)/.local/ansible/tmp
 export HELM_CONFIG_HOME := $(CURDIR)/.local/helm/config

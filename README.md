@@ -74,12 +74,11 @@ shell, without changing your global dotfiles or Kubernetes context.
 
 ## Documentation
 
-The fitness-tracker rollout is prepared separately from the running platform.
-It uses local retained SQLite state, requires no Google Drive, and is guarded
-against unreleased images or unpublished manifests. See the
-[application release guide](docs/gitops.md#fitness-tracker-release). Draft checks
-use `make check ALLOW_UNRELEASED=1`; only strict release checks can create its
-Argo CD Application.
+Fitness-tracker is running through Argo CD with digest-pinned images and local
+retained SQLite state, without Google Drive. Its release guards reject
+unreleased images and unpublished manifests. See the
+[application release guide](docs/gitops.md#fitness-tracker-release) and
+[access instructions](docs/observability.md#fitness-tracker-access).
 
 - [Provisioning tutorial](docs/provisioning.md)
 - [Architecture and decisions](docs/PN51/architecture-diagrams.md)
@@ -128,3 +127,9 @@ cold archive has a verified private off-host copy, and its original files remain
 available for rollback. LAN HTTPS ingress is active with verified certificates
 and anonymous dashboard requests redirecting to Authelia. Snapshot restore has
 not been exercised, so the backup is not a claim of tested disaster recovery.
+
+Fitness-tracker's Application is Synced/Healthy. Its release passed CI for both
+Python versions, frontend/container tests, and image vulnerability scans. Live
+checks verified athlete login, cookie/CSRF protection, a synthetic workout write,
+retained SQLite data after a backend pod restart, cleanup, and session revocation.
+No personal fitness data or Google credentials were imported.

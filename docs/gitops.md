@@ -76,7 +76,7 @@ explicit approval, as do commits and pushes from this local working tree.
 make fitness-check ALLOW_UNRELEASED=1
 ```
 
-That command validates only the draft workload and does not deploy it. The
+That command validates only a draft workload and does not deploy it. Future
 temporary `release-required` image references are intentionally unusable.
 After approved images are published, pin both digests, commit and publish the
 reviewed homelab manifests, reconcile the external Secrets through Ansible,
@@ -93,11 +93,25 @@ Argo CD Application; Argo CD reconciles the workloads. Publication and an actual
 Synced/Healthy result are separate from draft/template validation. The app is
 not live merely because these source checks pass.
 
-The intended URL is `https://fitness.pn51.192.168.1.20.sslip.io`. The app retains
+The live URL is `https://fitness.pn51.192.168.1.20.sslip.io`. The app retains
 its own athlete session and CSRF protection after the outer Authelia login.
 Retrieve credentials only through a trusted terminal/password-manager workflow,
 never in chat. Back up SQLite through the application's consistent backup
 command; an etcd snapshot does not contain its persistent application data.
+
+### Verified Release
+
+The deployed images were published by the successful fitness-tracker workflow
+for source revision `e2af8408f0a1321d546fe014857dc6e4a0e4cb82`; both digest
+manifests were also verified anonymously pullable before deployment. Argo CD
+reconciles the published homelab source, and its Application is Synced/Healthy.
+The backend and frontend are Ready with the retained state claim Bound.
+
+A live test through the actual frontend verified athlete login, Secure/HttpOnly/
+SameSite cookies, CSRF rejection, synthetic workout creation, readback after a
+new backend pod, test-record deletion, and session revocation. Test credentials
+were confined to process memory; no personal archive was read or imported and
+no Google connection was attempted. The temporary test forward was closed.
 
 To admit a different repository or namespace, review the project template and
 the corresponding Ansible group variables; do not casually widen the project

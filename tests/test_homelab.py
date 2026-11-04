@@ -881,6 +881,41 @@ def test_fitness_deploy_rejects_unreviewed_application_source(tmp_path, monkeypa
         homelab.deploy_fitness()
 
 
+@pytest.mark.parametrize(
+    "bundle,override,expected",
+    [
+        ("/etc/ssl/certs/ca-certificates.crt", None, "/etc/ssl/certs/ca-certificates.crt"),
+        ("/etc/ssl/cert.pem", None, "/etc/ssl/cert.pem"),
+        ("/etc/ssl/cert.pem", "/custom/verified-ca.pem", "/custom/verified-ca.pem"),
+    ],
+)
+def test_make_selects_platform_ca_and_preserves_explicit_override(bundle, override, expected):
+    environment = os.environ.copy()
+    environment.pop("SSL_CERT_FILE", None)
+    if override is not None:
+        environment["SSL_CERT_FILE"] = override
+    result = subprocess.run(
+        [
+            "make",
+            "--no-print-directory",
+            "-s",
+            "-f",
+            "Makefile",
+            "-f",
+            "-",
+            "print-test-ca",
+            f"SYSTEM_CA_BUNDLE={bundle}",
+        ],
+        input="print-test-ca:\n\t@printf '%s' '$(SSL_CERT_FILE)'\n",
+        cwd=ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert result.stdout == expected
+
+
 def test_public_files_exclude_private_artifacts():
     result = subprocess.run(
         [

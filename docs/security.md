@@ -114,8 +114,23 @@ tracked secrets.
 Git ignore rules do not protect a file that was already committed. Remove the
 file from tracking, rotate the exposed credential immediately, then coordinate
 history cleanup as needed. Deleting the latest file does not remove it from Git
-history or forks. The existing application Secret example has empty values;
-populate real application secrets through a separate secret-management workflow.
+history or forks. The fitness workload declares no Secret data in Git; Ansible
+owns its private runtime and TLS Secrets, which the application project cannot
+take over.
+
+## Controller Dependency Advisories
+
+The release review separately found existing Dependabot advisories in the
+homelab controller/docs `uv.lock`: critical `certifi` and high `filelock`,
+`pymdown-extensions`, and `ansible-core` findings. These are not a clean security
+bill for the controller; review the current
+[advisory inventory](https://github.com/TheNewThinkTank/homelab/security/dependabot)
+and validate a scoped dependency upgrade. Do not silently substitute a release
+candidate for a pinned controller version or bypass TLS/scanner gates.
+
+The deployed fitness backend/frontend are separate images and passed their
+required CI vulnerability scans. Controller dependency remediation remains a
+separate follow-up; this rollout does not claim those alerts are fixed.
 
 ## How to Rotate Secrets
 
