@@ -969,10 +969,21 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#verified-release" class="md-nav__link">
+  <a href="#automated-image-promotion" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Verified Release
+        Automated Image Promotion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#initial-release-qualification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Initial Release Qualification
       
     </span>
   </a>
@@ -1081,11 +1092,22 @@ and its separate password as private recovery material. Argo CD references
 these Secrets but never owns or publishes their contents.</p>
 <p>The application project also forbids Secret resources, so a later manifest
 cannot silently take over either Ansible-managed Secret.</p>
-<p>The sibling app's publishing workflow tags images with the full source commit
-SHA and emits <code>image-release.json</code> containing both pushed image digests. The
-workload must pin those <code>@sha256:</code> references; <code>latest</code> and unreleased tags are
-rejected by the production gate. Building or publishing a release requires
-explicit approval, as do commits and pushes from this local working tree.</p>
+<p>The sibling app publishes both images only after Python, frontend, container,
+browser, and image vulnerability gates pass. Its ordered release tag is
+<code>main-&lt;workflow run number&gt;.&lt;run attempt&gt;</code>; a rerun gets a distinct tag rather
+than overwriting an earlier release. The OCI revision label and
+<code>image-release.json</code> preserve the full source commit SHA. The artifact contains
+the release tag and both <code>:main-&lt;run&gt;.&lt;attempt&gt;@sha256:</code> references.</p>
+<p>Source provenance comes from that immutable image's OCI label and release
+artifact, not a fixed Deployment annotation that Renovate would leave stale.</p>
+<p>The workload keeps digest pins, so a registry tag cannot silently change running
+code. Both tagged references must name the same release; mixed releases,
+<code>latest</code>, and unreleased tags are rejected by the production gate. Existing
+bare digest pairs remain valid for recovery only while the fitness Renovate
+rule is disabled. Enabling the rule requires a numbered tag on both initial
+pins; an untagged digest would make Docker discovery fall back to <code>latest</code>.
+The source regression guard enforces this bootstrap requirement. Initial local
+publication still requires approval; ongoing updates use the automation below.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>make<span class="w"> </span>fitness-check<span class="w"> </span><span class="nv">ALLOW_UNRELEASED</span><span class="o">=</span><span class="m">1</span>
 </code></pre></div>
 <p>That command validates only a draft workload and does not deploy it. Future
@@ -1106,8 +1128,57 @@ its own athlete session and CSRF protection after the outer Authelia login.
 Retrieve credentials only through a trusted terminal/password-manager workflow,
 never in chat. Back up SQLite through the application's consistent backup
 command; an etcd snapshot does not contain its persistent application data.</p>
-<h3 id="verified-release">Verified Release</h3>
-<p>The deployed images were published by the successful fitness-tracker workflow
+<h3 id="automated-image-promotion">Automated Image Promotion</h3>
+<p>The hosted Renovate GitHub App needs access only to
+<code>TheNewThinkTank/homelab</code>. It discovers the two public GHCR repositories; no
+GitHub token or Renovate workload is installed on PN51. The repository's
+<code>renovate.json</code> enables only the Kubernetes manager and only
+<code>pn51/dev/fitness-tracker-k8s/deployment.yaml</code>. Terraform, Ansible, Helm,
+controller dependencies, and unrelated images are not auto-upgraded.</p>
+<p>Renovate groups backend and frontend into one <code>fitness-tracker release</code> PR,
+requires at least two updates, and pins both selected digests. Its numeric
+versioning ignores commit-SHA, <code>latest</code>, branch, and development tags. An
+incomplete publication cannot bypass the matching-release validation in CI.
+GitHub must allow squash merging and auto-merge; protect <code>main</code> with both
+<code>validate</code> and <code>secrets</code> required checks before enabling native auto-merge.
+GitHub branch protection enforces those checks for native auto-merge; current
+Renovate versions no longer support the old <code>requiredStatusChecks</code> setting.
+The required check producer is GitHub Actions, the branch must be up to date,
+and administrators cannot bypass the checks. Force pushes and deletion are disabled.
+Do not remove these protections or allow another CI job to reuse their names.</p>
+<p>The delivery path is:</p>
+<ol>
+<li>Merge reviewed application code to fitness-tracker <code>main</code>.</li>
+<li>Successful release CI publishes a paired, uniquely tagged image release.</li>
+<li>Renovate discovers it on its hosted scan and opens a grouped homelab PR.</li>
+<li>Both homelab CI checks pass before GitHub squash-merges the image changes.</li>
+<li>Argo CD's existing automated sync, self-heal, and prune reconcile Git to K3s.</li>
+</ol>
+<p>Discovery and Argo polling are asynchronous, not a synchronous deploy hook.
+<code>prConcurrentLimit: 1</code> avoids competing fitness release PRs. Do not add an Argo
+image updater or a direct <code>kubectl set image</code> job: Git remains the only
+application desired-state source. The backend's <code>Recreate</code> rollout has a brief
+unavailable interval; the retained SQLite claim is not replaced by an image
+update. A grouped PR is not an atomic two-Deployment rollout.</p>
+<p>After a merged release, verify the Application and image references rather than
+assuming a merged PR means a healthy deployment:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>kubectl<span class="w"> </span>--kubeconfig<span class="w"> </span>.local/kubeconfig<span class="w"> </span>-n<span class="w"> </span>argocd<span class="w"> </span>get<span class="w"> </span>application<span class="w"> </span>fitness-tracker-argo-application
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>kubectl<span class="w"> </span>--kubeconfig<span class="w"> </span>.local/kubeconfig<span class="w"> </span>-n<span class="w"> </span>fitness-tracker<span class="w"> </span>get<span class="w"> </span>deployment,pod,pvc
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>kubectl<span class="w"> </span>--kubeconfig<span class="w"> </span>.local/kubeconfig<span class="w"> </span>-n<span class="w"> </span>fitness-tracker<span class="w"> </span>get<span class="w"> </span>deployment<span class="w"> </span>-o<span class="w"> </span><span class="s1">&#39;custom-columns=NAME:.metadata.name,IMAGE:.spec.template.spec.containers[0].image&#39;</span>
+</code></pre></div>
+<p>For troubleshooting, inspect the Renovate Dependency Dashboard and grouped PR
+checks first, then the Application's sync/health and Pod events. A failed image
+scan means no qualified release; a partial image publication or mismatched PR
+must wait for a complete pair, never bypass validation.</p>
+<p>To pause delivery, set <code>enabled: false</code> on the fitness package rule and merge
+that change before reverting both image references together to a known-good
+pair. Argo CD will reconcile the Git rollback. Re-enabling the rule resumes
+promotion, including releases newer than the rollback. Container rollback does
+not reverse a SQLite schema migration: take a consistent backup and disable
+auto-merge before releases that need a separate data migration or restore.
+Keep the PVC and Ansible-owned Secrets intact.</p>
+<h3 id="initial-release-qualification">Initial Release Qualification</h3>
+<p>The initial deployed images were published by the successful fitness-tracker workflow
 for source revision <code>e2af8408f0a1321d546fe014857dc6e4a0e4cb82</code>; both digest
 manifests were also verified anonymously pullable before deployment. Argo CD
 reconciles the published homelab source, and its Application is Synced/Healthy.
