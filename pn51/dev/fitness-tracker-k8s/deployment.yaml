@@ -41,7 +41,7 @@ spec:
             sizeLimit: 64Mi
       containers:
         - name: backend
-          image: ghcr.io/thenewthinktank/fitness-tracker:main-926.1@sha256:95022ba86082e4a9ff5d84c8494d3e38eed3506d90e05658bac186632c80e183
+          image: ghcr.io/thenewthinktank/fitness-tracker:main-926.2@sha256:24546f41413b44674b6c733306e3764aa33b51b027ced5c9bffc3cbeefdfbcd0
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -113,7 +113,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: frontend
-          image: ghcr.io/thenewthinktank/fitness-tracker-frontend:main-926.1@sha256:c4b90517acdf08d902cb94ecaf5c23055fbc0d64fd9707116d432801e5d2b773
+          image: ghcr.io/thenewthinktank/fitness-tracker-frontend:main-926.2@sha256:b9beec91fa552fc00bbd941b5b0aa6f8da09294d524828b8ea027d98eaafba61
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
