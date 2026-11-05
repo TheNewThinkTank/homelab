@@ -980,6 +980,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#verified-automated-delivery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verified Automated Delivery
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#initial-release-qualification" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1177,6 +1188,24 @@ promotion, including releases newer than the rollback. Container rollback does
 not reverse a SQLite schema migration: take a consistent backup and disable
 auto-merge before releases that need a separate data migration or restore.
 Keep the PVC and Ansible-owned Secrets intact.</p>
+<h3 id="verified-automated-delivery">Verified Automated Delivery</h3>
+<p>On 2026-11-05, <a href="https://github.com/TheNewThinkTank/fitness-tracker/pull/96">publisher PR 96</a>
+enabled numbered publishing. Release workflow 926 passed its qualification and
+image scans; a second publishing attempt produced <code>main-926.2</code> from the same
+source revision <code>00e3ae4138643145d5d4143a1a149b722c9d7e68</code>.</p>
+<p>The hosted bot created <a href="https://github.com/TheNewThinkTank/homelab/pull/4">homelab PR 4</a>
+with exactly the two image-reference changes. Renovate itself requested native
+squash auto-merge, and both required CI checks passed before GitHub merged it.
+Argo CD then automatically reached Synced/Healthy at
+<code>fd0d5eba8fc70a57e8a656abac26f76bee2f19a3</code>; both running Pods used the exact
+artifact digests, with no image-pull Secrets or restarts. The original retained
+SQLite claim remained Bound to the same volume. Verified HTTPS still redirected
+anonymous requests to Authelia.</p>
+<p>This was a real publication, bot PR, protected merge, and cluster rollout, not a
+mocked delivery test. No personal data or Google integration was read or
+imported, and application data was not modified for this acceptance check.
+See <a href="../security/#dependency-automation">dependency automation</a> for why
+Dependabot remains separate from application image promotion.</p>
 <h3 id="initial-release-qualification">Initial Release Qualification</h3>
 <p>The initial deployed images were published by the successful fitness-tracker workflow
 for source revision <code>e2af8408f0a1321d546fe014857dc6e4a0e4cb82</code>; both digest
