@@ -2,8 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: fitness-tracker-backend
-  annotations:
-    org.opencontainers.image.revision: e2af8408f0a1321d546fe014857dc6e4a0e4cb82
   labels:
     app.kubernetes.io/name: fitness-tracker
     app.kubernetes.io/component: backend
@@ -43,7 +41,7 @@ spec:
             sizeLimit: 64Mi
       containers:
         - name: backend
-          image: ghcr.io/thenewthinktank/fitness-tracker@sha256:cafeb085826d452d089edf9f5b27842ce30e5f3721046469d3069d7ed4348b26
+          image: ghcr.io/thenewthinktank/fitness-tracker:main-926.1@sha256:95022ba86082e4a9ff5d84c8494d3e38eed3506d90e05658bac186632c80e183
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -89,8 +87,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: fitness-tracker-frontend
-  annotations:
-    org.opencontainers.image.revision: e2af8408f0a1321d546fe014857dc6e4a0e4cb82
   labels:
     app.kubernetes.io/name: fitness-tracker
     app.kubernetes.io/component: frontend
@@ -117,7 +113,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: frontend
-          image: ghcr.io/thenewthinktank/fitness-tracker-frontend@sha256:6aaadd0d8bb37e2b4c874154f80253b9c808ce77741ab75fab783bba0525d4f6
+          image: ghcr.io/thenewthinktank/fitness-tracker-frontend:main-926.1@sha256:c4b90517acdf08d902cb94ecaf5c23055fbc0d64fd9707116d432801e5d2b773
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

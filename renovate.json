@@ -1,0 +1,33 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "enabledManagers": ["kubernetes"],
+  "kubernetes": {
+    "managerFilePatterns": ["/^pn51/dev/fitness-tracker-k8s/deployment\\.yaml$/"]
+  },
+  "dependencyDashboard": true,
+  "prConcurrentLimit": 1,
+  "prHourlyLimit": 1,
+  "automerge": false,
+  "packageRules": [
+    {
+      "description": "Promote a paired, tested fitness-tracker release through GitOps.",
+      "matchManagers": ["kubernetes"],
+      "matchDatasources": ["docker"],
+      "matchPackageNames": [
+        "ghcr.io/thenewthinktank/fitness-tracker",
+        "ghcr.io/thenewthinktank/fitness-tracker-frontend"
+      ],
+      "versioning": "regex:^main-(?<major>\\d+)\\.(?<minor>\\d+)$",
+      "groupName": "fitness-tracker release",
+      "groupSlug": "fitness-tracker-release",
+      "minimumGroupSize": 2,
+      "separateMajorMinor": false,
+      "pinDigests": true,
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash",
+      "platformAutomerge": true
+    }
+  ]
+}
