@@ -118,6 +118,33 @@ history or forks. The fitness workload declares no Secret data in Git; Ansible
 owns its private runtime and TLS Secrets, which the application project cannot
 take over.
 
+## Dependency Automation
+
+Keep Dependabot alongside Renovate. The two tools do not overlap in the
+current setup: homelab Renovate promotes only the two published fitness images,
+not application packages, GitHub Actions, or container base images.
+
+The application's [Dependabot configuration](https://github.com/TheNewThinkTank/fitness-tracker/blob/main/.github/dependabot.yml)
+declares weekly GitHub Actions, frontend npm, and backend/frontend Docker
+updates, plus monthly root `uv` updates. Preserve that coverage; reviewed
+application dependency changes pass publishing qualification and scans before
+Renovate promotes their resulting images. Homelab has no Dependabot version-update
+configuration, so scheduled controller, documentation, Terraform, and action
+updates are not provided by this image-only Renovate configuration.
+
+Version-update configuration, advisory alerts, and automatic security-fix PRs
+are separate settings. Live checks on 2026-11-05 found homelab advisory alerts
+enabled, fitness-tracker advisory alerts disabled, and Dependabot security-update
+PRs disabled in both repositories. No setting was removed or silently changed.
+Enable application advisory alerts and security-fix PRs deliberately as a
+separate security improvement; a declared version-update file is not proof
+those security features are active.
+
+Removing Dependabot would only be appropriate after another reviewed tool owns
+all those ecosystems and their lockfile/base-image checks, without duplicate
+PRs. This release deliberately does not expand Renovate beyond application
+image delivery or auto-merge unrelated dependency changes.
+
 ## Controller Dependency Advisories
 
 The release review separately found existing Dependabot advisories in the
