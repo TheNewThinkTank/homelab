@@ -722,6 +722,61 @@ def test_argocd_project_scope_rejects_infrastructure_adoption(defect):
         homelab.validate_argocd_projects(projects, settings)
 
 
+def test_renovate_promotes_only_paired_digest_pinned_fitness_releases():
+    configuration = json.loads((ROOT / "renovate.json").read_text())
+    assert configuration["enabledManagers"] == ["kubernetes"]
+    assert configuration["kubernetes"]["managerFilePatterns"] == [
+        r"/^pn51/dev/fitness-tracker-k8s/deployment\.yaml$/"
+    ]
+    assert configuration["automerge"] is False
+    assert configuration["prConcurrentLimit"] == 1
+    assert len(configuration["packageRules"]) == 1
+    rule = configuration["packageRules"][0]
+    assert rule["matchManagers"] == ["kubernetes"]
+    assert rule["matchDatasources"] == ["docker"]
+    assert rule["matchPackageNames"] == [
+        "ghcr.io/thenewthinktank/fitness-tracker",
+        "ghcr.io/thenewthinktank/fitness-tracker-frontend",
+    ]
+    assert rule["versioning"] == r"regex:^main-(?<major>\d+)\.(?<minor>\d+)$"
+    assert rule["groupSlug"] == "fitness-tracker-release"
+    assert rule["minimumGroupSize"] == 2
+    assert rule["separateMajorMinor"] is False
+    assert rule["pinDigests"] is True
+    assert rule["automerge"] is True
+    assert rule["automergeType"] == "pr"
+    assert rule["automergeStrategy"] == "squash"
+    assert "requiredStatusChecks" not in rule
+    assert rule["platformAutomerge"] is True
+    jobs = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text())["jobs"]
+    assert {"validate", "secrets"}.issubset(jobs)
+
+
+def test_enabled_renovate_requires_a_paired_numbered_release_seed():
+    configuration = json.loads((ROOT / "renovate.json").read_text())
+    rule = configuration["packageRules"][0]
+    if not rule.get("enabled", True):
+        return
+    documents = homelab.parse_yaml_documents(
+        (ROOT / "pn51/dev/fitness-tracker-k8s/deployment.yaml").read_text()
+    )
+    tags = set()
+    for document in documents:
+        if document["kind"] == "Deployment":
+            assert "org.opencontainers.image.revision" not in document["metadata"].get(
+                "annotations", {}
+            ), "Image provenance belongs to its release artifact and OCI labels."
+            image = document["spec"]["template"]["spec"]["containers"][0]["image"]
+            reference = re.fullmatch(
+                r"ghcr\.io/thenewthinktank/fitness-tracker(?:-frontend)?"
+                r":(?P<tag>main-[1-9][0-9]*\.[1-9][0-9]*)@sha256:[a-f0-9]{64}",
+                image,
+            )
+            assert reference is not None, "Enabled Renovate needs tagged digest seeds."
+            tags.add(reference.group("tag"))
+    assert len(tags) == 1
+
+
 @pytest.fixture
 def fitness_workload():
     rendered = homelab.execute(
@@ -739,6 +794,46 @@ def fitness_workload():
 
 def test_fitness_local_workload_contract(fitness_workload):
     homelab.validate_fitness_workload(fitness_workload)
+
+
+@pytest.mark.parametrize("tag", ["main-102.1", "main-103.2"])
+def test_fitness_accepts_paired_immutable_release_tags(fitness_workload, tag):
+    for item in fitness_workload:
+        if item["kind"] == "Deployment":
+            container = item["spec"]["template"]["spec"]["containers"][0]
+            repository, digest = container["image"].split("@")
+            container["image"] = f"{repository}:{tag}@{digest}"
+    homelab.validate_fitness_workload(fitness_workload)
+
+
+@pytest.mark.parametrize("tag", ["latest", "main", "main-0.1", "main-102.0", "v1.2.3"])
+def test_fitness_rejects_other_tag_formats_even_with_a_digest(fitness_workload, tag):
+    container = next(
+        item["spec"]["template"]["spec"]["containers"][0]
+        for item in fitness_workload
+        if item["kind"] == "Deployment"
+    )
+    repository, digest = container["image"].split("@")
+    container["image"] = f"{repository}:{tag}@{digest}"
+    with pytest.raises(ValueError, match="pin both fitness images by digest"):
+        homelab.validate_fitness_workload(fitness_workload)
+
+
+@pytest.mark.parametrize("frontend_tag", [None, "main-103.1", "main-102.2"])
+def test_fitness_rejects_partial_or_mismatched_releases(fitness_workload, frontend_tag):
+    for item in fitness_workload:
+        if item["kind"] == "Deployment":
+            container = item["spec"]["template"]["spec"]["containers"][0]
+            repository, digest = container["image"].split("@")
+            tag = (
+                frontend_tag
+                if item["metadata"]["name"] == "fitness-tracker-frontend"
+                else "main-102.1"
+            )
+            if tag:
+                container["image"] = f"{repository}:{tag}@{digest}"
+    with pytest.raises(ValueError, match="same immutable release tag"):
+        homelab.validate_fitness_workload(fitness_workload)
 
 
 @pytest.mark.parametrize(

@@ -838,6 +838,7 @@ def validate_fitness_workload(
     backend = deployments["fitness-tracker-backend"]["spec"]
     if backend["replicas"] != 1 or backend.get("strategy", {}).get("type") != "Recreate":
         raise ValueError("SQLite requires one backend writer and a Recreate rollout.")
+    release_tags = set()
     for component in ("backend", "frontend"):
         pod = deployments[f"fitness-tracker-{component}"]["spec"]["template"]["spec"]
         if pod.get("automountServiceAccountToken", True) or pod.get("enableServiceLinks", True):
@@ -856,7 +857,14 @@ def validate_fitness_workload(
             "-frontend" if component == "frontend" else ""
         )
         image = container["image"]
-        if not re.fullmatch(re.escape(repository) + r"@sha256:[a-f0-9]{64}", image):
+        reference = re.fullmatch(
+            re.escape(repository)
+            + r"(?::(?P<tag>main-[1-9][0-9]*\.[1-9][0-9]*))?@sha256:[a-f0-9]{64}",
+            image,
+        )
+        if reference:
+            release_tags.add(reference.group("tag"))
+        else:
             if not (allow_unreleased and image == repository + ":release-required"):
                 raise ValueError("Publish and pin both fitness images by digest before deployment.")
         if any(
@@ -866,6 +874,8 @@ def validate_fitness_workload(
             raise ValueError(
                 "Use retained local state, not host paths or imported Google credentials."
             )
+    if len(release_tags) > 1:
+        raise ValueError("Pin both fitness images to the same immutable release tag.")
     configuration = next(item["data"] for item in documents if item["kind"] == "ConfigMap")
     expected = {
         "FITNESS_TRACKER_DATA_DIR": "/data",

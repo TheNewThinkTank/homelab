@@ -30,7 +30,8 @@ against the host.
 | Real Ansible templates | All four host configs rendered; server/agent flag separation; token-file use; unchanged second render |
 | Platform render gate | 33 real resources; seven MFA/TLS routes, restricted containers, credential-free Homepage, network policies, read-only Headlamp RBAC |
 | Argo CD chart gate | Exact official archive checksum, three CRDs, private services, non-root workloads, disabled anonymous access, repository/namespace project limits |
-| Fitness workload gate | Ten local-data resources; one SQLite writer, Recreate rollout, retained state, read-only imports, MFA/TLS, private services, narrow egress, and release image pins |
+| Fitness workload gate | Ten local-data resources; one SQLite writer, Recreate rollout, retained state, read-only imports, MFA/TLS, private services, narrow egress, digest pins, and matching release tags |
+| Renovate regressions | Only the fitness deployment and two GHCR images; paired updates, digest pins, and CI job names used by branch protection |
 | Python regressions | Private modes, symlinks, vault encryption/failure, inventory precedence, replacement scope and PV guards, idempotence evidence |
 | Dotfiles role contracts | Mutable revisions rejected before package installation; public source and ubuntu ownership; local configuration fixture changes only when necessary |
 | Real pinned chart | Exact archive checksum; strict Helm lint; render against pinned Kubernetes version; private services; persistent storage; existing Grafana Secret |
@@ -42,6 +43,30 @@ The GitHub workflow pins its actions to commit IDs, uses a frozen Python lockfil
 and grants infrastructure validation read-only repository access. It has no
 homelab credentials or self-hosted runner. Documentation publishing has its own
 separate write-capable workflow.
+
+Focused release automation checks are:
+
+```bash
+.venv/bin/python -m pytest -q tests/test_homelab.py -k 'renovate or fitness'
+make fitness-check
+```
+
+The sibling fitness-tracker suite also executes the publishing workflow's
+artifact-generation script against synthetic Docker metadata. It checks paired
+tag-plus-digest references, source revision, missing/ambiguous digest rejection,
+main-only publishing, unique rerun tags, and qualification/scan ordering. Run
+only that safe slice locally with dotenv disabled:
+
+```bash
+PYTHON_DOTENV_DISABLED=1 ../fitness-tracker/.venv/bin/python -m pytest -q --rootdir=../fitness-tracker ../fitness-tracker/test/test_image_release.py
+actionlint ../fitness-tracker/.github/workflows/wf.yml ../fitness-tracker/.github/workflows/job_docker_image.yml
+```
+
+Static configuration checks and synthetic registry metadata do not prove the
+hosted bot is installed, branch protection works, GHCR contains both images, or
+Argo CD deploys them. [GitOps acceptance](gitops.md#automated-image-promotion)
+requires an actual paired release, required green PR checks, a merged image PR,
+and the resulting Synced/Healthy Application with the same retained PVC.
 
 ## How to Run Live Acceptance
 
