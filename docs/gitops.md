@@ -170,6 +170,28 @@ not reverse a SQLite schema migration: take a consistent backup and disable
 auto-merge before releases that need a separate data migration or restore.
 Keep the PVC and Ansible-owned Secrets intact.
 
+### Verified Automated Delivery
+
+On 2026-11-05, [publisher PR 96](https://github.com/TheNewThinkTank/fitness-tracker/pull/96)
+enabled numbered publishing. Release workflow 926 passed its qualification and
+image scans; a second publishing attempt produced `main-926.2` from the same
+source revision `00e3ae4138643145d5d4143a1a149b722c9d7e68`.
+
+The hosted bot created [homelab PR 4](https://github.com/TheNewThinkTank/homelab/pull/4)
+with exactly the two image-reference changes. Renovate itself requested native
+squash auto-merge, and both required CI checks passed before GitHub merged it.
+Argo CD then automatically reached Synced/Healthy at
+`fd0d5eba8fc70a57e8a656abac26f76bee2f19a3`; both running Pods used the exact
+artifact digests, with no image-pull Secrets or restarts. The original retained
+SQLite claim remained Bound to the same volume. Verified HTTPS still redirected
+anonymous requests to Authelia.
+
+This was a real publication, bot PR, protected merge, and cluster rollout, not a
+mocked delivery test. No personal data or Google integration was read or
+imported, and application data was not modified for this acceptance check.
+See [dependency automation](security.md#dependency-automation) for why
+Dependabot remains separate from application image promotion.
+
 ### Initial Release Qualification
 
 The initial deployed images were published by the successful fitness-tracker workflow
